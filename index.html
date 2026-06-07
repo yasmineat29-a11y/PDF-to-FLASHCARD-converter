@@ -192,13 +192,11 @@
                         const page = await pdf.getPage(pageNum);
                         const textContent = await page.getTextContent();
                         
-                        // Use higher rendering factor to make text completely crisp
                         const renderScale = 2.0; 
                         const viewport = page.getViewport({ scale: renderScale });
 
                         let paragraphs = clusterTextItemsIntoParagraphs(textContent.items, viewport);
 
-                        // Generate page canvas inside buffer memory
                         const renderCanvas = document.createElement('canvas');
                         renderCanvas.width = viewport.width;
                         renderCanvas.height = viewport.height;
@@ -208,15 +206,15 @@
                         for (let p of paragraphs) {
                             if (p.text.trim().length < 20) continue;
 
-                            // Add a safety pad margin of 25px so nothing ever clips
-                            const safetyMargin = 25;
+                            // Generous padding settings to completely prevent vertical text clipping
+                            const padX = 20;
+                            const padY = 25; // Extra breathing room above and below the letters
                             
-                            let x = p.x - safetyMargin;
-                            let y = p.y - safetyMargin;
-                            let w = p.w + (safetyMargin * 2);
-                            let h = p.h + (safetyMargin * 2);
+                            let x = p.x - padX;
+                            let y = p.y - padY;
+                            let w = p.w + (padX * 2);
+                            let h = p.h + (padY * 2);
 
-                            // Keep boundaries inside actual page layout bounds
                             x = Math.max(0, x);
                             y = Math.max(0, y);
                             w = Math.min(viewport.width - x, w);
@@ -229,7 +227,6 @@
                             cropCanvas.height = h;
                             const ctx = cropCanvas.getContext('2d');
 
-                            // Isolate the paragraph coordinates cleanly
                             ctx.drawImage(renderCanvas, x, y, w, h, 0, 0, w, h);
 
                             flashcardAssetsDeck.push({
@@ -261,34 +258,35 @@
             fileReader.readAsArrayBuffer(file);
         }
 
-        // New, highly precise clustering algorithm using strict viewport coordinate mappings
         function clusterTextItemsIntoParagraphs(items, viewport) {
             let paragraphs = [];
             
-            // Build absolute canvas dimensions for every text line component element
             let transformedItems = items.map(item => {
-                // PDF.js utility method to translate bottom-left coordinates into correct top-left canvas spaces
                 let pdfRect = [item.transform[4], item.transform[5], item.transform[4] + item.width, item.transform[5] + item.height];
                 let canvasRect = viewport.convertToViewportRectangle(pdfRect);
+                
+                // Read font scale size to estimate structural vertical safety parameters
+                let fontSize = Math.abs(item.transform[0] || item.transform[3] || 12);
                 
                 return {
                     text: item.str,
                     x: Math.min(canvasRect[0], canvasRect[2]),
-                    y: Math.min(canvasRect[1], canvasRect[3]),
+                    // Give every single element line item its actual font bounding height context
+                    y: Math.min(canvasRect[1], canvasRect[3]) - (fontSize * 0.2), 
                     w: Math.abs(canvasRect[2] - canvasRect[0]),
-                    h: Math.abs(canvasRect[3] - canvasRect[1])
+                    h: Math.abs(canvasRect[3] - canvasRect[1]) + (fontSize * 0.4)
                 };
             });
 
-            // Group close lines into paragraphs based on proximity vertical alignment metrics
             transformedItems.forEach(item => {
                 let merged = false;
                 for (let p of paragraphs) {
-                    // If lines are close horizontally and vertically, join them into the same paragraph block
+                    // Check if items are close enough to be in the same block segment
                     let verticalDistance = Math.abs(item.y - (p.y + p.h));
                     let horizontalOverlap = (item.x < p.x + p.w && item.x + item.w > p.x);
                     
-                    if (verticalDistance < 20 && horizontalOverlap) {
+                    // Increased line linking distance limit to safely keep whole paragraph containers bound together
+                    if (verticalDistance < 28 && horizontalOverlap) {
                         let x1 = Math.min(p.x, item.x);
                         let y1 = Math.min(p.y, item.y);
                         let x2 = Math.max(p.x + p.w, item.x + item.w);
