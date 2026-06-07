@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
     <style>
         :root {
-            --bg-color: #f1f5f9;
+            --bg-color: #f8fafc;
             --card-bg: #ffffff;
             --primary: #2563eb;
             --success: #10b981;
@@ -18,7 +18,7 @@
         body {
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: var(--bg-color);
             color: var(--text);
             display: flex;
@@ -29,91 +29,91 @@
 
         header {
             background-color: var(--card-bg);
-            padding: 12px;
+            padding: 10px;
             text-align: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             z-index: 10;
+            flex-shrink: 0;
         }
 
         #app-workspace {
             flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px;
+            padding: 10px;
             overflow: hidden;
             box-sizing: border-box;
         }
 
-        /* Dynamically utilizes all available vertical phone space */
+        /* Responsive flashcard layout container */
         .flashcard-view {
             background: var(--card-bg);
-            border-radius: 16px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
             width: 100%;
-            max-width: 500px;
             flex: 1; 
             display: flex;
             flex-direction: column;
             overflow: hidden;
             border: 1px solid #e2e8f0;
-            margin-bottom: 12px;
         }
 
-        /* Maximizes image viewport size layout */
+        /* Prevents left and right text clipping by enabling internal scroll styling */
         .card-image-wrapper {
             flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 12px;
-            overflow: auto;
-            background: #fafafa;
+            padding: 15px;
+            overflow: auto; /* Allows panning if the paragraph is wider than the phone screen */
+            background: #ffffff;
+            -webkit-overflow-scrolling: touch;
         }
 
-        /* Forces the cropped text canvas to stretch as large as possible */
+        /* Renders image smoothly without distortion or horizontal clipping */
         .card-image-wrapper canvas {
-            width: 100% !important;
-            height: auto !important;
             max-width: 100%;
-            max-height: 100%;
+            height: auto !important;
             object-fit: contain;
+            display: block;
         }
 
         .card-metadata-footer {
-            height: 40px;
-            background: #f8fafc;
+            height: 38px;
+            background: #f1f5f9;
             border-top: 1px solid #e2e8f0;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 16px;
+            padding: 0 14px;
             font-size: 13px;
             font-weight: 600;
             color: var(--text-muted);
             flex-shrink: 0;
         }
 
+        /* Optimized row for mobile action layouts */
         .controls-row {
             display: flex;
-            gap: 10px;
+            gap: 8px;
             width: 100%;
-            max-width: 500px;
-            padding-bottom: 8px;
+            padding: 8px 0 4px 0;
             flex-shrink: 0;
+            box-sizing: border-box;
         }
 
         button, label.file-upload-label {
             flex: 1;
-            padding: 14px;
-            border-radius: 12px;
+            padding: 12px;
+            border-radius: 10px;
             border: none;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: bold;
             text-align: center;
             cursor: pointer;
             box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         label.file-upload-label {
@@ -131,6 +131,7 @@
         .btn-shuffle {
             background-color: var(--success);
             color: white;
+            flex: 1.2; /* Gives the main action button slightly more tap target area */
         }
 
         #file-input {
@@ -138,23 +139,23 @@
         }
 
         .status-text {
-            font-size: 16px;
-            color: var(--text);
-            margin-top: auto;
-            margin-bottom: auto;
+            font-size: 15px;
+            color: var(--text-muted);
+            margin: auto;
             text-align: center;
             font-weight: 500;
+            padding: 20px;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h3 style="margin:0;">Mobile Card Studio</h3>
+        <h4 style="margin:0; font-weight: 700; color: #1e293b;">Mobile Card Studio</h4>
     </header>
 
     <div id="app-workspace">
-        <div id="status" class="status-text">👋 Ready! Please upload a PDF to create cards.</div>
+        <div id="status" class="status-text">📁 Please upload a text PDF to automatically extract paragraph flashcards.</div>
 
         <div class="flashcard-view" id="card-view" style="display: none;">
             <div class="card-image-wrapper" id="image-container"></div>
@@ -187,7 +188,7 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            document.getElementById('status').innerText = "Reading layout structure... Please wait.";
+            document.getElementById('status').innerText = "Analyzing text coordinates... Please wait.";
             flashcardAssetsDeck = [];
             activeCardIndex = 0;
 
@@ -202,7 +203,7 @@
                         const page = await pdf.getPage(pageNum);
                         const textContent = await page.getTextContent();
                         
-                        // Render scale set at 2.0x for crisp zoom magnification
+                        // Scale up for sharper rendering resolution on high-DPI phone displays
                         const renderScale = 2.0; 
                         const viewport = page.getViewport({ scale: renderScale });
 
@@ -217,8 +218,9 @@
                         for (let p of paragraphs) {
                             if (p.text.trim().length < 20) continue;
 
-                            const padX = 20;
-                            const padY = 25; 
+                            // Margin configurations to secure whole text block elements
+                            const padX = 24;
+                            const padY = 24; 
                             
                             let x = p.x - padX;
                             let y = p.y - padY;
@@ -230,7 +232,7 @@
                             w = Math.min(viewport.width - x, w);
                             h = Math.min(viewport.height - y, h);
 
-                            if (w <= 10 || h <= 10) continue;
+                            if (w <= 15 || h <= 15) continue;
 
                             const cropCanvas = document.createElement('canvas');
                             cropCanvas.width = w;
@@ -247,7 +249,7 @@
                     }
 
                     if (flashcardAssetsDeck.length === 0) {
-                        document.getElementById('status').innerText = "No readable text content paragraphs found.";
+                        document.getElementById('status').innerText = "No readable paragraphs detected. Ensure this PDF contains highlightable text.";
                         return;
                     }
 
@@ -262,7 +264,7 @@
 
                 } catch (error) {
                     console.error(error);
-                    document.getElementById('status').innerText = "Could not parse this specific PDF structure file.";
+                    document.getElementById('status').innerText = "Error decoding document contents.";
                 }
             };
             fileReader.readAsArrayBuffer(file);
@@ -279,9 +281,9 @@
                 return {
                     text: item.str,
                     x: Math.min(canvasRect[0], canvasRect[2]),
-                    y: Math.min(canvasRect[1], canvasRect[3]) - (fontSize * 0.2), 
+                    y: Math.min(canvasRect[1], canvasRect[3]) - (fontSize * 0.25), 
                     w: Math.abs(canvasRect[2] - canvasRect[0]),
-                    h: Math.abs(canvasRect[3] - canvasRect[1]) + (fontSize * 0.4)
+                    h: Math.abs(canvasRect[3] - canvasRect[1]) + (fontSize * 0.5)
                 };
             });
 
@@ -291,7 +293,7 @@
                     let verticalDistance = Math.abs(item.y - (p.y + p.h));
                     let horizontalOverlap = (item.x < p.x + p.w && item.x + item.w > p.x);
                     
-                    if (verticalDistance < 28 && horizontalOverlap) {
+                    if (verticalDistance < 24 && horizontalOverlap) {
                         let x1 = Math.min(p.x, item.x);
                         let y1 = Math.min(p.y, item.y);
                         let x2 = Math.max(p.x + p.w, item.x + item.w);
@@ -323,6 +325,10 @@
 
             document.getElementById('page-stamp').innerText = `Source: Page ${activeCard.page}`;
             document.getElementById('counter-stamp').innerText = `${activeCardIndex + 1} / ${flashcardAssetsDeck.length}`;
+            
+            // Auto-scroll the view block back to the left side when a new card loads
+            container.scrollLeft = 0;
+            container.scrollTop = 0;
         }
 
         function navigateDeck(direction) {
