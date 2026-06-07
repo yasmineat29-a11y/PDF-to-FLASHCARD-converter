@@ -44,7 +44,6 @@
             box-sizing: border-box;
         }
 
-        /* Top Bar Container for the Upload Action */
         .upload-container-row {
             width: 100%;
             margin-bottom: 12px;
@@ -73,7 +72,6 @@
             background: #ffffff;
         }
 
-        /* Fully responsive scaling structure */
         .card-image-wrapper canvas {
             max-width: 100% !important;
             max-height: 100% !important;
@@ -108,10 +106,10 @@
         button, label.file-upload-label {
             display: block;
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             border-radius: 10px;
             border: none;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: bold;
             text-align: center;
             cursor: pointer;
@@ -141,13 +139,16 @@
         }
 
         .status-text {
-            font-size: 15px;
+            font-size: 16px;
             color: var(--text-muted);
-            margin: auto;
             text-align: center;
             font-weight: 500;
-            padding: 20px;
-            line-height: 1.4;
+            padding: 30px 20px;
+            line-height: 1.5;
+            background: white;
+            border-radius: 12px;
+            border: 1px dashed #cbd5e1;
+            margin: auto 0;
         }
     </style>
 </head>
@@ -159,11 +160,14 @@
 
     <div id="app-workspace">
         <div class="upload-container-row" id="top-upload-box">
-            <label class="file-upload-label" for="file-input">📁 Upload PDF Document</label>
+            <label class="file-upload-label" for="file-input" id="upload-label-text">📁 Select PDF File</label>
             <input type="file" id="file-input" accept="application/pdf">
         </div>
 
-        <div id="status" class="status-text">Tap the button above to load your text PDF and extract flashcards.</div>
+        <div id="status" class="status-text">
+            Tap the button above to upload a textbook or notes PDF.<br><br>
+            <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Make sure the file contains regular selectable text (not scanned images).</span>
+        </div>
 
         <div class="flashcard-view" id="card-view" style="display: none;">
             <div class="card-image-wrapper" id="image-container"></div>
@@ -181,6 +185,7 @@
     </div>
 
     <script>
+        // Ensure the PDF core scripts mount gracefully
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
 
@@ -193,8 +198,15 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            document.getElementById('status').style.display = 'block';
-            document.getElementById('status').innerText = "Analyzing text coordinates... Please wait.";
+            const statusLabel = document.getElementById('status');
+            const uploadLabel = document.getElementById('upload-label-text');
+            
+            // UI Visual Feedback loops
+            uploadLabel.innerText = "⏳ Processing...";
+            uploadLabel.style.backgroundColor = "#64748b";
+            statusLabel.style.display = 'block';
+            statusLabel.innerHTML = "<strong>Reading layout structure...</strong><br>Converting paragraphs into cards. Please don't close the tab.";
+            
             document.getElementById('card-view').style.display = 'none';
             document.getElementById('navigation-box').style.display = 'none';
             
@@ -208,7 +220,8 @@
                     const pdf = await pdfjsLib.getDocument({data: typedarray}).promise;
                     
                     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-                        document.getElementById('status').innerText = `Processing Page ${pageNum} of ${pdf.numPages}...`;
+                        statusLabel.innerHTML = `<strong>Processing Page ${pageNum} of ${pdf.numPages}...</strong><br>Building images dynamically.`;
+                        
                         const page = await pdf.getPage(pageNum);
                         const textContent = await page.getTextContent();
                         
@@ -218,13 +231,13 @@
                         let paragraphs = clusterTextItemsIntoParagraphs(textContent.items, viewport);
 
                         const renderCanvas = document.createElement('canvas');
-                        renderCanvas.width = viewport.width;
-                        renderCanvas.height = viewport.height;
+                        renderCanvas.width = viewport.width || 600;
+                        renderCanvas.height = viewport.height || 800;
                         const renderContext = renderCanvas.getContext('2d');
                         await page.render({ canvasContext: renderContext, viewport: viewport }).promise;
 
                         for (let p of paragraphs) {
-                            if (p.text.trim().length < 20) continue;
+                            if (p.text.trim().length < 25) continue;
 
                             const padX = 24;
                             const padY = 24; 
@@ -236,10 +249,10 @@
 
                             x = Math.max(0, x);
                             y = Math.max(0, y);
-                            w = Math.min(viewport.width - x, w);
-                            h = Math.min(viewport.height - y, h);
+                            w = Math.min(renderCanvas.width - x, w);
+                            h = Math.min(renderCanvas.height - y, h);
 
-                            if (w <= 15 || h <= 15) continue;
+                            if (w <= 20 || h <= 20) continue;
 
                             const cropCanvas = document.createElement('canvas');
                             cropCanvas.width = w;
@@ -256,13 +269,16 @@
                     }
 
                     if (flashcardAssetsDeck.length === 0) {
-                        document.getElementById('status').innerText = "No readable paragraphs detected. Ensure this PDF contains highlightable text lines.";
+                        uploadLabel.innerText = "📁 Select PDF File";
+                        uploadLabel.style.backgroundColor = "#2563eb";
+                        statusLabel.innerHTML = "<strong>No readable text text found.</strong><br>This happens if your PDF is made of scanned images or pictures instead of selectable text.";
                         return;
                     }
 
-                    // Rearrange elements seamlessly on success
-                    document.getElementById('top-upload-box').style.display = 'none';
-                    document.getElementById('status').style.display = 'none';
+                    // On complete success, toggle components safely
+                    uploadLabel.innerText = "📁 Change PDF";
+                    uploadLabel.style.backgroundColor = "#2563eb";
+                    statusLabel.style.display = 'none';
                     document.getElementById('card-view').style.display = 'flex';
                     document.getElementById('navigation-box').style.display = 'flex';
 
@@ -270,7 +286,9 @@
 
                 } catch (error) {
                     console.error(error);
-                    document.getElementById('status').innerText = "Error decoding document contents.";
+                    uploadLabel.innerText = "📁 Select PDF File";
+                    uploadLabel.style.backgroundColor = "#2563eb";
+                    statusLabel.innerHTML = "<strong>Error analyzing file.</strong><br>Please make sure this is a valid unencrypted PDF file layout.";
                 }
             };
             fileReader.readAsArrayBuffer(file);
@@ -338,3 +356,14 @@
             if (activeCardIndex < 0) activeCardIndex = 0;
             if (activeCardIndex >= flashcardAssetsDeck.length) activeCardIndex = flashcardAssetsDeck.length - 1;
             renderActiveCard();
+        }
+
+        function shuffleDeck() {
+            if (flashcardAssetsDeck.length <= 1) return;
+            flashcardAssetsDeck.sort(() => Math.random() - 0.5);
+            activeCardIndex = 0;
+            renderActiveCard();
+        }
+    </script>
+</body>
+</html>
