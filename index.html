@@ -18,7 +18,7 @@
         body {
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: var(--bg-color);
             color: var(--text);
             display: flex;
@@ -29,23 +29,28 @@
 
         header {
             background-color: var(--card-bg);
-            padding: 10px;
+            padding: 12px;
             text-align: center;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
             z-index: 10;
-            flex-shrink: 0;
         }
 
         #app-workspace {
             flex: 1;
             display: flex;
             flex-direction: column;
-            padding: 10px;
+            padding: 12px;
             overflow: hidden;
             box-sizing: border-box;
         }
 
-        /* Responsive flashcard layout container */
+        /* Top Bar Container for the Upload Action */
+        .upload-container-row {
+            width: 100%;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+        }
+
         .flashcard-view {
             background: var(--card-bg);
             border-radius: 12px;
@@ -58,21 +63,21 @@
             border: 1px solid #e2e8f0;
         }
 
-        /* Prevents left and right text clipping by enabling internal scroll styling */
         .card-image-wrapper {
             flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 15px;
-            overflow: auto; /* Allows panning if the paragraph is wider than the phone screen */
+            padding: 16px;
+            overflow: auto;
             background: #ffffff;
-            -webkit-overflow-scrolling: touch;
         }
 
-        /* Renders image smoothly without distortion or horizontal clipping */
+        /* Fully responsive scaling structure */
         .card-image-wrapper canvas {
-            max-width: 100%;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            width: auto !important;
             height: auto !important;
             object-fit: contain;
             display: block;
@@ -92,18 +97,17 @@
             flex-shrink: 0;
         }
 
-        /* Optimized row for mobile action layouts */
         .controls-row {
             display: flex;
             gap: 8px;
             width: 100%;
-            padding: 8px 0 4px 0;
+            padding-top: 12px;
             flex-shrink: 0;
-            box-sizing: border-box;
         }
 
         button, label.file-upload-label {
-            flex: 1;
+            display: block;
+            width: 100%;
             padding: 12px;
             border-radius: 10px;
             border: none;
@@ -112,26 +116,24 @@
             text-align: center;
             cursor: pointer;
             box-sizing: border-box;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
         }
 
         label.file-upload-label {
             background-color: var(--primary);
             color: white;
-            display: block;
         }
 
         .btn-secondary {
             background-color: #ffffff;
             color: var(--text);
             border: 1px solid #cbd5e1;
+            flex: 1;
         }
 
         .btn-shuffle {
             background-color: var(--success);
             color: white;
-            flex: 1.2; /* Gives the main action button slightly more tap target area */
+            flex: 1.2;
         }
 
         #file-input {
@@ -145,6 +147,7 @@
             text-align: center;
             font-weight: 500;
             padding: 20px;
+            line-height: 1.4;
         }
     </style>
 </head>
@@ -155,7 +158,12 @@
     </header>
 
     <div id="app-workspace">
-        <div id="status" class="status-text">📁 Please upload a text PDF to automatically extract paragraph flashcards.</div>
+        <div class="upload-container-row" id="top-upload-box">
+            <label class="file-upload-label" for="file-input">📁 Upload PDF Document</label>
+            <input type="file" id="file-input" accept="application/pdf">
+        </div>
+
+        <div id="status" class="status-text">Tap the button above to load your text PDF and extract flashcards.</div>
 
         <div class="flashcard-view" id="card-view" style="display: none;">
             <div class="card-image-wrapper" id="image-container"></div>
@@ -165,13 +173,10 @@
             </div>
         </div>
 
-        <div class="controls-row">
-            <label id="upload-wrapper" class="file-upload-label" for="file-input">📁 Upload PDF</label>
-            <input type="file" id="file-input" accept="application/pdf">
-
-            <button id="prev-btn" class="btn-secondary" style="display:none;" onclick="navigateDeck(-1)">◀ Prev</button>
-            <button id="shuffle-btn" class="btn-shuffle" style="display:none;" onclick="shuffleDeck()">🔀 Shuffle</button>
-            <button id="next-btn" class="btn-secondary" style="display:none;" onclick="navigateDeck(1)">Next ▶</button>
+        <div class="controls-row" id="navigation-box" style="display: none;">
+            <button class="btn-secondary" onclick="navigateDeck(-1)">◀ Prev</button>
+            <button class="btn-shuffle" onclick="shuffleDeck()">🔀 Shuffle</button>
+            <button class="btn-secondary" onclick="navigateDeck(1)">Next ▶</button>
         </div>
     </div>
 
@@ -188,7 +193,11 @@
             const file = event.target.files[0];
             if (!file) return;
 
+            document.getElementById('status').style.display = 'block';
             document.getElementById('status').innerText = "Analyzing text coordinates... Please wait.";
+            document.getElementById('card-view').style.display = 'none';
+            document.getElementById('navigation-box').style.display = 'none';
+            
             flashcardAssetsDeck = [];
             activeCardIndex = 0;
 
@@ -203,7 +212,6 @@
                         const page = await pdf.getPage(pageNum);
                         const textContent = await page.getTextContent();
                         
-                        // Scale up for sharper rendering resolution on high-DPI phone displays
                         const renderScale = 2.0; 
                         const viewport = page.getViewport({ scale: renderScale });
 
@@ -218,7 +226,6 @@
                         for (let p of paragraphs) {
                             if (p.text.trim().length < 20) continue;
 
-                            // Margin configurations to secure whole text block elements
                             const padX = 24;
                             const padY = 24; 
                             
@@ -249,16 +256,15 @@
                     }
 
                     if (flashcardAssetsDeck.length === 0) {
-                        document.getElementById('status').innerText = "No readable paragraphs detected. Ensure this PDF contains highlightable text.";
+                        document.getElementById('status').innerText = "No readable paragraphs detected. Ensure this PDF contains highlightable text lines.";
                         return;
                     }
 
-                    document.getElementById('upload-wrapper').style.display = 'none';
-                    document.getElementById('card-view').style.display = 'flex';
-                    document.getElementById('prev-btn').style.display = 'block';
-                    document.getElementById('shuffle-btn').style.display = 'block';
-                    document.getElementById('next-btn').style.display = 'block';
+                    // Rearrange elements seamlessly on success
+                    document.getElementById('top-upload-box').style.display = 'none';
                     document.getElementById('status').style.display = 'none';
+                    document.getElementById('card-view').style.display = 'flex';
+                    document.getElementById('navigation-box').style.display = 'flex';
 
                     renderActiveCard();
 
@@ -325,10 +331,6 @@
 
             document.getElementById('page-stamp').innerText = `Source: Page ${activeCard.page}`;
             document.getElementById('counter-stamp').innerText = `${activeCardIndex + 1} / ${flashcardAssetsDeck.length}`;
-            
-            // Auto-scroll the view block back to the left side when a new card loads
-            container.scrollLeft = 0;
-            container.scrollTop = 0;
         }
 
         function navigateDeck(direction) {
@@ -336,14 +338,3 @@
             if (activeCardIndex < 0) activeCardIndex = 0;
             if (activeCardIndex >= flashcardAssetsDeck.length) activeCardIndex = flashcardAssetsDeck.length - 1;
             renderActiveCard();
-        }
-
-        function shuffleDeck() {
-            if (flashcardAssetsDeck.length <= 1) return;
-            flashcardAssetsDeck.sort(() => Math.random() - 0.5);
-            activeCardIndex = 0;
-            renderActiveCard();
-        }
-    </script>
-</body>
-</html>
