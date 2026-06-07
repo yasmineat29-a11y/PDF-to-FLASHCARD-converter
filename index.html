@@ -29,71 +29,79 @@
 
         header {
             background-color: var(--card-bg);
-            padding: 15px;
+            padding: 12px;
             text-align: center;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            z-index: 10;
         }
 
         #app-workspace {
             flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
-            padding: 20px;
+            padding: 12px;
             overflow: hidden;
+            box-sizing: border-box;
         }
 
+        /* Dynamically utilizes all available vertical phone space */
         .flashcard-view {
             background: var(--card-bg);
             border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
             width: 100%;
-            max-width: 450px;
-            height: 380px;
+            max-width: 500px;
+            flex: 1; 
             display: flex;
             flex-direction: column;
             overflow: hidden;
             border: 1px solid #e2e8f0;
+            margin-bottom: 12px;
         }
 
+        /* Maximizes image viewport size layout */
         .card-image-wrapper {
             flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 20px;
+            padding: 12px;
             overflow: auto;
             background: #fafafa;
         }
 
+        /* Forces the cropped text canvas to stretch as large as possible */
         .card-image-wrapper canvas {
+            width: 100% !important;
+            height: auto !important;
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .card-metadata-footer {
-            height: 45px;
+            height: 40px;
             background: #f8fafc;
             border-top: 1px solid #e2e8f0;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 20px;
+            padding: 0 16px;
             font-size: 13px;
             font-weight: 600;
             color: var(--text-muted);
+            flex-shrink: 0;
         }
 
         .controls-row {
             display: flex;
-            gap: 12px;
+            gap: 10px;
             width: 100%;
-            max-width: 450px;
-            margin-top: 20px;
-            padding-bottom: 20px;
+            max-width: 500px;
+            padding-bottom: 8px;
+            flex-shrink: 0;
         }
 
         button, label.file-upload-label {
@@ -105,6 +113,7 @@
             font-weight: bold;
             text-align: center;
             cursor: pointer;
+            box-sizing: border-box;
         }
 
         label.file-upload-label {
@@ -131,7 +140,8 @@
         .status-text {
             font-size: 16px;
             color: var(--text);
-            margin-bottom: 10px;
+            margin-top: auto;
+            margin-bottom: auto;
             text-align: center;
             font-weight: 500;
         }
@@ -192,6 +202,7 @@
                         const page = await pdf.getPage(pageNum);
                         const textContent = await page.getTextContent();
                         
+                        // Render scale set at 2.0x for crisp zoom magnification
                         const renderScale = 2.0; 
                         const viewport = page.getViewport({ scale: renderScale });
 
@@ -206,9 +217,8 @@
                         for (let p of paragraphs) {
                             if (p.text.trim().length < 20) continue;
 
-                            // Generous padding settings to completely prevent vertical text clipping
                             const padX = 20;
-                            const padY = 25; // Extra breathing room above and below the letters
+                            const padY = 25; 
                             
                             let x = p.x - padX;
                             let y = p.y - padY;
@@ -264,14 +274,11 @@
             let transformedItems = items.map(item => {
                 let pdfRect = [item.transform[4], item.transform[5], item.transform[4] + item.width, item.transform[5] + item.height];
                 let canvasRect = viewport.convertToViewportRectangle(pdfRect);
-                
-                // Read font scale size to estimate structural vertical safety parameters
                 let fontSize = Math.abs(item.transform[0] || item.transform[3] || 12);
                 
                 return {
                     text: item.str,
                     x: Math.min(canvasRect[0], canvasRect[2]),
-                    // Give every single element line item its actual font bounding height context
                     y: Math.min(canvasRect[1], canvasRect[3]) - (fontSize * 0.2), 
                     w: Math.abs(canvasRect[2] - canvasRect[0]),
                     h: Math.abs(canvasRect[3] - canvasRect[1]) + (fontSize * 0.4)
@@ -281,11 +288,9 @@
             transformedItems.forEach(item => {
                 let merged = false;
                 for (let p of paragraphs) {
-                    // Check if items are close enough to be in the same block segment
                     let verticalDistance = Math.abs(item.y - (p.y + p.h));
                     let horizontalOverlap = (item.x < p.x + p.w && item.x + item.w > p.x);
                     
-                    // Increased line linking distance limit to safely keep whole paragraph containers bound together
                     if (verticalDistance < 28 && horizontalOverlap) {
                         let x1 = Math.min(p.x, item.x);
                         let y1 = Math.min(p.y, item.y);
