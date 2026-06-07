@@ -1,24 +1,307 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="Quickly create flashcards from PDFs and automatically link them back to their source"
-      lang="en"
-    />
-    <meta
-      name="description"
-      content="Erstelle schnell und einfach Karteikarten aus PDF-Dokumenten und verknüpfe Karten direkt mit ihrer Quelle"
-      lang="de-DE"
-    />
-    <title>cardflash</title>
-  </head>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Paragraph Flashcard Generator</title>
+    <script src="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --primary: #2563eb;
+            --success: #10b981;
+            --text: #0f172a;
+            --text-muted: #64748b;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
 
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+        header {
+            background-color: var(--card-bg);
+            padding: 15px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        #app-workspace {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        .flashcard-view {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 450px;
+            height: 350px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+
+        .card-image-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px;
+            overflow: auto;
+            background: #fafafa;
+        }
+
+        .card-image-wrapper canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .card-metadata-footer {
+            height: 45px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .controls-row {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            max-width: 450px;
+            margin-top: 20px;
+            padding-bottom: 20px;
+        }
+
+        button, label.file-upload-label {
+            flex: 1;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            font-size: 15px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        label.file-upload-label {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #ffffff;
+            color: var(--text);
+            border: 1px solid #cbd5e1;
+        }
+
+        .btn-shuffle {
+            background-color: var(--success);
+            color: white;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h3 style="margin:0;">Mobile Card Studio</h3>
+    </header>
+
+    <div id="app-workspace">
+        <div id="status" class="status-text">Please upload a document to isolate paragraphs</div>
+
+        <div class="flashcard-view" id="card-view" style="display: none;">
+            <div class="card-image-wrapper" id="image-container"></div>
+            <div class="card-metadata-footer">
+                <span id="page-stamp">Source: Page --</span>
+                <span id="counter-stamp">0 / 0</span>
+            </div>
+        </div>
+
+        <div class="controls-row">
+            <label id="upload-wrapper" class="file-upload-label" for="file-input">📁 Upload PDF</label>
+            <input type="file" id="file-input" accept="application/pdf">
+
+            <button id="prev-btn" class="btn-secondary" style="display:none;" onclick="navigateDeck(-1)">◀ Prev</button>
+            <button id="shuffle-btn" class="btn-shuffle" style="display:none;" onclick="shuffleDeck()">🔀 Shuffle</button>
+            <button id="next-btn" class="btn-secondary" style="display:none;" onclick="navigateDeck(1)">Next ▶</button>
+        </div>
+    </div>
+
+    <script>
+        // Use matching unpkg worker for clean cross-origin permission headers
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
+
+        let flashcardAssetsDeck = [];
+        let activeCardIndex = 0;
+
+        document.getElementById('file-input').addEventListener('change', handlePDFUpload);
+
+        async function handlePDFUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            document.getElementById('status').innerText = "Processing document paragraph items...";
+            flashcardAssetsDeck = [];
+            activeCardIndex = 0;
+
+            const fileReader = new FileReader();
+            fileReader.onload = async function() {
+                const typedarray = new Uint8Array(this.result);
+                try {
+                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    
+                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                        const page = await pdf.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        const viewport = page.getViewport({ scale: 2.0 });
+
+                        let paragraphs = clusterTextItemsIntoParagraphs(textContent.items);
+
+                        for (let p of paragraphs) {
+                            if (p.text.trim().length < 25) continue;
+
+                            const cropCanvas = document.createElement('canvas');
+                            const ctx = cropCanvas.getContext('2d');
+
+                            const pad = 8;
+                            const blockWidth = (p.maxX - p.minX) * 2.0 + (pad * 2);
+                            const blockHeight = (p.maxY - p.minY) * 2.0 + (pad * 2);
+
+                            if (blockWidth <= 0 || blockHeight <= 0) continue;
+
+                            cropCanvas.width = blockWidth;
+                            cropCanvas.height = blockHeight;
+
+                            const renderCanvas = document.createElement('canvas');
+                            renderCanvas.width = viewport.width;
+                            renderCanvas.height = viewport.height;
+                            const renderContext = renderCanvas.getContext('2d');
+
+                            await page.render({ canvasContext: renderContext, viewport: viewport }).promise;
+
+                            const sourceX = p.minX * 2.0 - pad;
+                            const sourceY = viewport.height - (p.maxY * 2.0) - pad;
+
+                            ctx.drawImage(renderCanvas, sourceX, sourceY, blockWidth, blockHeight, 0, 0, blockWidth, blockHeight);
+
+                            flashcardAssetsDeck.push({
+                                canvas: cropCanvas,
+                                page: pageNum
+                            });
+                        }
+                    }
+
+                    if (flashcardAssetsDeck.length === 0) {
+                        document.getElementById('status').innerText = "No structured paragraphs found. Try another file.";
+                        return;
+                    }
+
+                    document.getElementById('upload-wrapper').style.display = 'none';
+                    document.getElementById('card-view').style.display = 'flex';
+                    document.getElementById('prev-btn').style.display = 'block';
+                    document.getElementById('shuffle-btn').style.display = 'block';
+                    document.getElementById('next-btn').style.display = 'block';
+                    document.getElementById('status').style.display = 'none';
+
+                    renderActiveCard();
+
+                } catch (error) {
+                    console.error(error);
+                    document.getElementById('status').innerText = "Error parsing document layout structure.";
+                }
+            };
+            fileReader.readAsArrayBuffer(file);
+        }
+
+        function clusterTextItemsIntoParagraphs(items) {
+            let lineGroups = {};
+            items.forEach(item => {
+                let y = Math.round(item.transform[5]);
+                let foundGroup = Object.keys(lineGroups).find(key => Math.abs(key - y) < 12);
+                let targetKey = foundGroup ? foundGroup : y;
+
+                if (!lineGroups[targetKey]) lineGroups[targetKey] = [];
+                lineGroups[targetKey].push(item);
+            });
+
+            let clusters = [];
+            Object.keys(lineGroups).forEach(y => {
+                let text = "";
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+                lineGroups[y].forEach(item => {
+                    text += " " + item.str;
+                    let itemX = item.transform[4];
+                    let itemY = item.transform[5];
+                    minX = Math.min(minX, itemX);
+                    minY = Math.min(minY, itemY);
+                    maxX = Math.max(maxX, itemX + item.width);
+                    maxY = Math.max(maxY, itemY + item.height);
+                });
+
+                clusters.push({ text, minX, minY, maxX, maxY });
+            });
+            return clusters;
+        }
+
+        function renderActiveCard() {
+            const container = document.getElementById('image-container');
+            container.innerHTML = '';
+
+            const activeCard = flashcardAssetsDeck[activeCardIndex];
+            container.appendChild(activeCard.canvas);
+
+            document.getElementById('page-stamp').innerText = `Source: Page ${activeCard.page}`;
+            document.getElementById('counter-stamp').innerText = `${activeCard.activeCardIndex = activeCardIndex + 1} / ${flashcardAssetsDeck.length}`;
+        }
+
+        function navigateDeck(direction) {
+            activeCardIndex += direction;
+            if (activeCardIndex < 0) activeCardIndex = 0;
+            if (activeCardIndex >= flashcardAssetsDeck.length) activeCardIndex = flashcardAssetsDeck.length - 1;
+            renderActiveCard();
+        }
+
+        function shuffleDeck() {
+            if (flashcardAssetsDeck.length <= 1) return;
+            flashcardAssetsDeck.sort(() => Math.random() - 0.5);
+            activeCardIndex = 0;
+            renderActiveCard();
+        }
+    </script>
+</body>
 </html>
