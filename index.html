@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mobile Paragraph Flashcard Generator</title>
-    <script src="https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -18,7 +18,7 @@
         body {
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
             background-color: var(--bg-color);
             color: var(--text);
             display: flex;
@@ -50,7 +50,7 @@
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
             width: 100%;
             max-width: 450px;
-            height: 350px;
+            height: 380px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -62,7 +62,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 15px;
+            padding: 20px;
             overflow: auto;
             background: #fafafa;
         }
@@ -71,6 +71,7 @@
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         .card-metadata-footer {
@@ -109,6 +110,7 @@
         label.file-upload-label {
             background-color: var(--primary);
             color: white;
+            display: block;
         }
 
         .btn-secondary {
@@ -127,10 +129,11 @@
         }
 
         .status-text {
-            font-size: 14px;
-            color: var(--text-muted);
+            font-size: 16px;
+            color: var(--text);
             margin-bottom: 10px;
             text-align: center;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -141,7 +144,7 @@
     </header>
 
     <div id="app-workspace">
-        <div id="status" class="status-text">Please upload a document to isolate paragraphs</div>
+        <div id="status" class="status-text">👋 Ready! Please upload a PDF to create cards.</div>
 
         <div class="flashcard-view" id="card-view" style="display: none;">
             <div class="card-image-wrapper" id="image-container"></div>
@@ -162,8 +165,8 @@
     </div>
 
     <script>
-        // Use matching unpkg worker for clean cross-origin permission headers
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
+        var pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
 
         let flashcardAssetsDeck = [];
         let activeCardIndex = 0;
@@ -174,7 +177,7 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            document.getElementById('status').innerText = "Processing document paragraph items...";
+            document.getElementById('status').innerText = "Reading layout structure... Please wait.";
             flashcardAssetsDeck = [];
             activeCardIndex = 0;
 
@@ -182,41 +185,52 @@
             fileReader.onload = async function() {
                 const typedarray = new Uint8Array(this.result);
                 try {
-                    const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                    const pdf = await pdfjsLib.getDocument({data: typedarray}).promise;
                     
                     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                        document.getElementById('status').innerText = `Processing Page ${pageNum} of ${pdf.numPages}...`;
                         const page = await pdf.getPage(pageNum);
                         const textContent = await page.getTextContent();
-                        const viewport = page.getViewport({ scale: 2.0 });
+                        
+                        // Use higher rendering factor to make text completely crisp
+                        const renderScale = 2.0; 
+                        const viewport = page.getViewport({ scale: renderScale });
 
-                        let paragraphs = clusterTextItemsIntoParagraphs(textContent.items);
+                        let paragraphs = clusterTextItemsIntoParagraphs(textContent.items, viewport);
+
+                        // Generate page canvas inside buffer memory
+                        const renderCanvas = document.createElement('canvas');
+                        renderCanvas.width = viewport.width;
+                        renderCanvas.height = viewport.height;
+                        const renderContext = renderCanvas.getContext('2d');
+                        await page.render({ canvasContext: renderContext, viewport: viewport }).promise;
 
                         for (let p of paragraphs) {
-                            if (p.text.trim().length < 25) continue;
+                            if (p.text.trim().length < 20) continue;
+
+                            // Add a safety pad margin of 25px so nothing ever clips
+                            const safetyMargin = 25;
+                            
+                            let x = p.x - safetyMargin;
+                            let y = p.y - safetyMargin;
+                            let w = p.w + (safetyMargin * 2);
+                            let h = p.h + (safetyMargin * 2);
+
+                            // Keep boundaries inside actual page layout bounds
+                            x = Math.max(0, x);
+                            y = Math.max(0, y);
+                            w = Math.min(viewport.width - x, w);
+                            h = Math.min(viewport.height - y, h);
+
+                            if (w <= 10 || h <= 10) continue;
 
                             const cropCanvas = document.createElement('canvas');
+                            cropCanvas.width = w;
+                            cropCanvas.height = h;
                             const ctx = cropCanvas.getContext('2d');
 
-                            const pad = 8;
-                            const blockWidth = (p.maxX - p.minX) * 2.0 + (pad * 2);
-                            const blockHeight = (p.maxY - p.minY) * 2.0 + (pad * 2);
-
-                            if (blockWidth <= 0 || blockHeight <= 0) continue;
-
-                            cropCanvas.width = blockWidth;
-                            cropCanvas.height = blockHeight;
-
-                            const renderCanvas = document.createElement('canvas');
-                            renderCanvas.width = viewport.width;
-                            renderCanvas.height = viewport.height;
-                            const renderContext = renderCanvas.getContext('2d');
-
-                            await page.render({ canvasContext: renderContext, viewport: viewport }).promise;
-
-                            const sourceX = p.minX * 2.0 - pad;
-                            const sourceY = viewport.height - (p.maxY * 2.0) - pad;
-
-                            ctx.drawImage(renderCanvas, sourceX, sourceY, blockWidth, blockHeight, 0, 0, blockWidth, blockHeight);
+                            // Isolate the paragraph coordinates cleanly
+                            ctx.drawImage(renderCanvas, x, y, w, h, 0, 0, w, h);
 
                             flashcardAssetsDeck.push({
                                 canvas: cropCanvas,
@@ -226,7 +240,7 @@
                     }
 
                     if (flashcardAssetsDeck.length === 0) {
-                        document.getElementById('status').innerText = "No structured paragraphs found. Try another file.";
+                        document.getElementById('status').innerText = "No readable text content paragraphs found.";
                         return;
                     }
 
@@ -241,41 +255,60 @@
 
                 } catch (error) {
                     console.error(error);
-                    document.getElementById('status').innerText = "Error parsing document layout structure.";
+                    document.getElementById('status').innerText = "Could not parse this specific PDF structure file.";
                 }
             };
             fileReader.readAsArrayBuffer(file);
         }
 
-        function clusterTextItemsIntoParagraphs(items) {
-            let lineGroups = {};
-            items.forEach(item => {
-                let y = Math.round(item.transform[5]);
-                let foundGroup = Object.keys(lineGroups).find(key => Math.abs(key - y) < 12);
-                let targetKey = foundGroup ? foundGroup : y;
-
-                if (!lineGroups[targetKey]) lineGroups[targetKey] = [];
-                lineGroups[targetKey].push(item);
+        // New, highly precise clustering algorithm using strict viewport coordinate mappings
+        function clusterTextItemsIntoParagraphs(items, viewport) {
+            let paragraphs = [];
+            
+            // Build absolute canvas dimensions for every text line component element
+            let transformedItems = items.map(item => {
+                // PDF.js utility method to translate bottom-left coordinates into correct top-left canvas spaces
+                let pdfRect = [item.transform[4], item.transform[5], item.transform[4] + item.width, item.transform[5] + item.height];
+                let canvasRect = viewport.convertToViewportRectangle(pdfRect);
+                
+                return {
+                    text: item.str,
+                    x: Math.min(canvasRect[0], canvasRect[2]),
+                    y: Math.min(canvasRect[1], canvasRect[3]),
+                    w: Math.abs(canvasRect[2] - canvasRect[0]),
+                    h: Math.abs(canvasRect[3] - canvasRect[1])
+                };
             });
 
-            let clusters = [];
-            Object.keys(lineGroups).forEach(y => {
-                let text = "";
-                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-
-                lineGroups[y].forEach(item => {
-                    text += " " + item.str;
-                    let itemX = item.transform[4];
-                    let itemY = item.transform[5];
-                    minX = Math.min(minX, itemX);
-                    minY = Math.min(minY, itemY);
-                    maxX = Math.max(maxX, itemX + item.width);
-                    maxY = Math.max(maxY, itemY + item.height);
-                });
-
-                clusters.push({ text, minX, minY, maxX, maxY });
+            // Group close lines into paragraphs based on proximity vertical alignment metrics
+            transformedItems.forEach(item => {
+                let merged = false;
+                for (let p of paragraphs) {
+                    // If lines are close horizontally and vertically, join them into the same paragraph block
+                    let verticalDistance = Math.abs(item.y - (p.y + p.h));
+                    let horizontalOverlap = (item.x < p.x + p.w && item.x + item.w > p.x);
+                    
+                    if (verticalDistance < 20 && horizontalOverlap) {
+                        let x1 = Math.min(p.x, item.x);
+                        let y1 = Math.min(p.y, item.y);
+                        let x2 = Math.max(p.x + p.w, item.x + item.w);
+                        let y2 = Math.max(p.y + p.h, item.y + item.h);
+                        
+                        p.x = x1;
+                        p.y = y1;
+                        p.w = x2 - x1;
+                        p.h = y2 - y1;
+                        p.text += " " + item.text;
+                        merged = true;
+                        break;
+                    }
+                }
+                if (!merged) {
+                    paragraphs.push({ x: item.x, y: item.y, w: item.w, h: item.h, text: item.text });
+                }
             });
-            return clusters;
+
+            return paragraphs;
         }
 
         function renderActiveCard() {
@@ -286,7 +319,7 @@
             container.appendChild(activeCard.canvas);
 
             document.getElementById('page-stamp').innerText = `Source: Page ${activeCard.page}`;
-            document.getElementById('counter-stamp').innerText = `${activeCard.activeCardIndex = activeCardIndex + 1} / ${flashcardAssetsDeck.length}`;
+            document.getElementById('counter-stamp').innerText = `${activeCardIndex + 1} / ${flashcardAssetsDeck.length}`;
         }
 
         function navigateDeck(direction) {
