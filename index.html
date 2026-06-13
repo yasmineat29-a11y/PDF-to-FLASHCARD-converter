@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Card Studio">
     
-    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js"></script>
     <style>
         :root {
             --bg-color: #f8fafc;
@@ -226,8 +226,9 @@
     </div>
 
     <script>
+        // Setup matching worker location for the legacy rendering engine
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js';
 
         var flashcardAssetsDeck = [];
         var activeCardIndex = 0;
@@ -261,7 +262,6 @@
                     
                     function processPage(pageNum) {
                         if (pageNum > totalPages) {
-                            // Loop complete execution flow finishes here
                             if (flashcardAssetsDeck.length === 0) {
                                 uploadLabel.innerText = "📁 Select PDF File";
                                 uploadLabel.style.backgroundColor = "#2563eb";
@@ -325,7 +325,6 @@
                                             page: pageNum
                                         });
                                     }
-                                    // Process next page sequentially
                                     processPage(pageNum + 1);
                                 });
                             });
@@ -335,7 +334,6 @@
                         });
                     }
 
-                    // Start processing pages from index 1
                     processPage(1);
 
                 }).catch(function(error) {
@@ -425,7 +423,7 @@
             renderActiveCard();
         }
 
-        // --- PWA NATIVE OVERLAY ENGINE LOGIC ---
+        // --- PWA INSTALL ENGINE ---
         var deferredPrompt;
         var installContainer = document.getElementById('pwa-install-container');
         var installBtn = document.getElementById('pwa-install-btn');
@@ -440,24 +438,14 @@
             if (!deferredPrompt) return;
             deferredPrompt.prompt();
             deferredPrompt.userChoice.then(function(choiceResult) {
-                if (choiceResult.outcome === 'accepted') {
-                    console.log('User approved ecosystem deployment onboarding.');
-                }
                 installContainer.style.display = 'none';
                 deferredPrompt = null;
             });
         });
 
-        window.addEventListener('appinstalled', function() {
-            installContainer.style.display = 'none';
-            deferredPrompt = null;
-        });
-
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js')
-                    .then(function(reg) { console.log('Service Worker Registered Setup Hooked.'); })
-                    .catch(function(err) { console.log('Service Worker omitted setup execution:', err); });
+                navigator.serviceWorker.register('sw.js').catch(function(err) {});
             });
         }
     </script>
