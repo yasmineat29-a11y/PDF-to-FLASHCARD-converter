@@ -1,15 +1,13 @@
 {
   "name": "Mobile Card Studio",
-  "short_name": "CardStudio",
-  "start_url": ".",
+  "short_name": "Card Studio",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#2563eb",
-  "description": "Convert PDF paragraphs into flashcards instantly.",
-  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3389/3389081.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/3067/3067390.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
