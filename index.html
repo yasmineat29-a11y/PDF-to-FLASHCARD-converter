@@ -4,12 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mobile Paragraph Flashcard Generator</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2563eb">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
     <style>
         :root {
@@ -30,6 +24,7 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            /* Changed to auto to completely restore native mobile vertical scrolling */
             overflow-y: auto; 
             -webkit-overflow-scrolling: touch;
         }
@@ -61,6 +56,7 @@
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
             width: 100%;
+            /* Uses a stable responsive height so it fits beautifully on mobile screens */
             height: 65vh; 
             min-height: 350px;
             display: flex;
@@ -192,15 +188,6 @@
     </div>
 
     <script>
-        // PWA Service Worker Registration
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('Service Worker Registered successfully.'))
-                .catch(err => console.log('Service Worker registration failed:', err));
-            });
-        }
-
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
 
