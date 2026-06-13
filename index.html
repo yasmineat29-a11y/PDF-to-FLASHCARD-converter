@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Mobile Paragraph Flashcard Generator</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Card Studio">
+    
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
     <style>
         :root {
@@ -43,6 +49,33 @@
             flex-direction: column;
             padding: 12px;
             box-sizing: border-box;
+        }
+
+        /* Native App Installation Banner Style */
+        .install-banner {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 10px 14px;
+            margin: 0 12px 12px 12px;
+            border-radius: 10px;
+            display: none;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 500;
+            color: #1e40af;
+        }
+
+        .btn-install-now {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            width: auto;
         }
 
         .upload-container-row {
@@ -160,6 +193,11 @@
     <header>
         <h4 style="margin:0; font-weight: 700; color: #1e293b;">Mobile Card Studio</h4>
     </header>
+
+    <div id="pwa-install-container" class="install-banner">
+        <span>📱 Add to Home Screen for native workspace</span>
+        <button class="btn-install-now" id="pwa-install-btn">Install</button>
+    </div>
 
     <div id="app-workspace">
         <div class="upload-container-row" id="top-upload-box">
@@ -363,6 +401,41 @@
             flashcardAssetsDeck.sort(() => Math.random() - 0.5);
             activeCardIndex = 0;
             renderActiveCard();
+        }
+
+        // --- PWA NATIVE OVERLAY ENGINE LOGIC ---
+        let deferredPrompt;
+        const installContainer = document.getElementById('pwa-install-container');
+        const installBtn = document.getElementById('pwa-install-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installContainer.style.display = 'flex';
+        });
+
+        installBtn.addEventListener('click', async () => {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                console.log('User approved ecosystem deployment onboarding.');
+            }
+            installContainer.style.display = 'none';
+            deferredPrompt = null;
+        });
+
+        window.addEventListener('appinstalled', () => {
+            installContainer.style.display = 'none';
+            deferredPrompt = null;
+        });
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker Registered Setup Hooked.'))
+                    .catch(err => console.log('Service Worker omitted setup execution:', err));
+            });
         }
     </script>
 </body>
