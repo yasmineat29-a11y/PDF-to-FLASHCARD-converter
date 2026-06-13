@@ -202,7 +202,7 @@
     <div id="app-workspace">
         <div class="upload-container-row" id="top-upload-box">
             <label class="file-upload-label" for="file-input" id="upload-label-text">📁 Select PDF File</label>
-            <input type="file" id="file-input" accept="application/pdf">
+            <input type="file" id="file-input" accept=".pdf,application/pdf">
         </div>
 
         <div id="status" class="status-text">
@@ -229,18 +229,24 @@
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.worker.min.js';
 
-        var flashcardAssetsDeck = [];
-        var activeCardIndex = 0;
+        let flashcardAssetsDeck = [];
+        let activeCardIndex = 0;
 
         document.getElementById('file-input').addEventListener('change', handlePDFUpload);
 
-        function handlePDFUpload(event) {
-            var file = event.target.files[0];
+        async function handlePDFUpload(event) {
+            const file = event.target.files[0];
             if (!file) return;
 
-            var statusLabel = document.getElementById('status');
-            var uploadLabel = document.getElementById('upload-label-text');
+            const statusLabel = document.getElementById('status');
+            const uploadLabel = document.getElementById('upload-label-text');
             
+            // Legacy client side extension double check validation
+            if (file.name && !file.name.toLowerCase().endsWith('.pdf')) {
+                alert("Please select a valid PDF file format.");
+                return;
+            }
+
             uploadLabel.innerText = "⏳ Processing...";
             uploadLabel.style.backgroundColor = "#64748b";
             statusLabel.style.display = 'block';
@@ -252,105 +258,93 @@
             flashcardAssetsDeck = [];
             activeCardIndex = 0;
 
-            var fileReader = new FileReader();
-            fileReader.onload = function() {
-                var typedarray = new Uint8Array(this.result);
-                
-                pdfjsLib.getDocument({data: typedarray}).promise.then(function(pdf) {
-                    var pageNum = 1;
+            const fileReader = new FileReader();
+            fileReader.onload = async function() {
+                const typedarray = new Uint8Array(this.result);
+                try {
+                    const pdf = await pdfjsLib.getDocument({data: typedarray}).promise;
                     
-                    function processNextPage() {
-                        if (pageNum > pdf.numPages) {
-                            if (flashcardAssetsDeck.length === 0) {
-                                uploadLabel.innerText = "📁 Select PDF File";
-                                uploadLabel.style.backgroundColor = "#2563eb";
-                                statusLabel.innerHTML = "<strong>No readable text content found.</strong><br>This happens if your PDF is made of scanned images or pictures instead of selectable text.";
-                                return;
-                            }
-
-                            uploadLabel.innerText = "📁 Change PDF";
-                            uploadLabel.style.backgroundColor = "#2563eb";
-                            statusLabel.style.display = 'none';
-                            document.getElementById('card-view').style.display = 'flex';
-                            document.getElementById('navigation-box').style.display = 'flex';
-
-                            renderActiveCard();
-                            return;
-                        }
-
-                        statusLabel.innerHTML = "<strong>Processing Page " + pageNum + " of " + pdf.numPages + "...</strong><br>Building images dynamically.";
+                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                        statusLabel.innerHTML = `<strong>Processing Page ${pageNum} of ${pdf.numPages}...</strong><br>Building images dynamically.`;
                         
-                        pdf.getPage(pageNum).then(function(page) {
-                            page.getTextContent().then(function(textContent) {
-                                var renderScale = 2.0; 
-                                var viewport = page.getViewport({ scale: renderScale });
+                        const page = await pdf.getPage(pageNum);
+                        const textContent = await page.getTextContent();
+                        
+                        const renderScale = 2.0; 
+                        const viewport = page.getViewport({ scale: renderScale });
 
-                                var paragraphs = clusterTextItemsIntoParagraphs(textContent.items, viewport);
+                        let paragraphs = clusterTextItemsIntoParagraphs(textContent.items, viewport);
 
-                                var renderCanvas = document.createElement('canvas');
-                                renderCanvas.width = viewport.width || 600;
-                                renderCanvas.height = viewport.height || 800;
-                                var renderContext = renderCanvas.getContext('2d');
-                                
-                                page.render({ canvasContext: renderContext, viewport: viewport }).promise.then(function() {
-                                    for (var i = 0; i < paragraphs.length; i++) {
-                                        var p = paragraphs[i];
-                                        if (p.text.trim().length < 25) continue;
+                        const renderCanvas = document.createElement('canvas');
+                        renderCanvas.width = viewport.width || 600;
+                        renderCanvas.height = viewport.height || 800;
+                        const renderContext = renderCanvas.getContext('2d');
+                        await page.render({ canvasContext: renderContext, viewport: viewport }).promise;
 
-                                        var padX = 24;
-                                        var padY = 24; 
-                                        
-                                        var x = p.x - padX;
-                                        var y = p.y - padY;
-                                        var w = p.w + (padX * 2);
-                                        var h = p.h + (padY * 2);
+                        for (let p of paragraphs) {
+                            if (p.text.trim().length < 25) continue;
 
-                                        x = Math.max(0, x);
-                                        y = Math.max(0, y);
-                                        w = Math.min(renderCanvas.width - x, w);
-                                        h = Math.min(renderCanvas.height - y, h);
+                            const padX = 24;
+                            const padY = 24; 
+                            
+                            let x = p.x - padX;
+                            let y = p.y - padY;
+                            let w = p.w + (padX * 2);
+                            let h = p.h + (padY * 2);
 
-                                        if (w <= 20 || h <= 20) continue;
+                            x = Math.max(0, x);
+                            y = Math.max(0, y);
+                            w = Math.min(renderCanvas.width - x, w);
+                            h = Math.min(renderCanvas.height - y, h);
 
-                                        var cropCanvas = document.createElement('canvas');
-                                        cropCanvas.width = w;
-                                        cropCanvas.height = h;
-                                        var ctx = cropCanvas.getContext('2d');
+                            if (w <= 20 || h <= 20) continue;
 
-                                        ctx.drawImage(renderCanvas, x, y, w, h, 0, 0, w, h);
+                            const cropCanvas = document.createElement('canvas');
+                            cropCanvas.width = w;
+                            cropCanvas.height = h;
+                            const ctx = cropCanvas.getContext('2d');
 
-                                        flashcardAssetsDeck.push({
-                                            canvas: cropCanvas,
-                                            page: pageNum
-                                        });
-                                    }
-                                    
-                                    pageNum++;
-                                    processNextPage();
-                                });
+                            ctx.drawImage(renderCanvas, x, y, w, h, 0, 0, w, h);
+
+                            flashcardAssetsDeck.push({
+                                canvas: cropCanvas,
+                                page: pageNum
                             });
-                        });
+                        }
                     }
-                    
-                    processNextPage();
-                    
-                }).catch(function(error) {
+
+                    if (flashcardAssetsDeck.length === 0) {
+                        uploadLabel.innerText = "📁 Select PDF File";
+                        uploadLabel.style.backgroundColor = "#2563eb";
+                        statusLabel.innerHTML = "<strong>No readable text content found.</strong><br>This happens if your PDF is made of scanned images or pictures instead of selectable text.";
+                        return;
+                    }
+
+                    uploadLabel.innerText = "📁 Change PDF";
+                    uploadLabel.style.backgroundColor = "#2563eb";
+                    statusLabel.style.display = 'none';
+                    document.getElementById('card-view').style.display = 'flex';
+                    document.getElementById('navigation-box').style.display = 'flex';
+
+                    renderActiveCard();
+
+                } catch (error) {
                     console.error(error);
                     uploadLabel.innerText = "📁 Select PDF File";
                     uploadLabel.style.backgroundColor = "#2563eb";
                     statusLabel.innerHTML = "<strong>Error analyzing file.</strong><br>Please make sure this is a valid unencrypted PDF file layout.";
-                });
+                }
             };
             fileReader.readAsArrayBuffer(file);
         }
 
         function clusterTextItemsIntoParagraphs(items, viewport) {
-            var paragraphs = [];
+            let paragraphs = [];
             
-            var transformedItems = items.map(function(item) {
-                var pdfRect = [item.transform[4], item.transform[5], item.transform[4] + item.width, item.transform[5] + item.height];
-                var canvasRect = viewport.convertToViewportRectangle(pdfRect);
-                var fontSize = Math.abs(item.transform[0] || item.transform[3] || 12);
+            let transformedItems = items.map(item => {
+                let pdfRect = [item.transform[4], item.transform[5], item.transform[4] + item.width, item.transform[5] + item.height];
+                let canvasRect = viewport.convertToViewportRectangle(pdfRect);
+                let fontSize = Math.abs(item.transform[0] || item.transform[3] || 12);
                 
                 return {
                     text: item.str,
@@ -361,18 +355,17 @@
                 };
             });
 
-            transformedItems.forEach(function(item) {
-                var merged = false;
-                for (var i = 0; i < paragraphs.length; i++) {
-                    var p = paragraphs[i];
-                    var verticalDistance = Math.abs(item.y - (p.y + p.h));
-                    var horizontalOverlap = (item.x < p.x + p.w && item.x + item.w > p.x);
+            transformedItems.forEach(item => {
+                let merged = false;
+                for (let p of paragraphs) {
+                    let verticalDistance = Math.abs(item.y - (p.y + p.h));
+                    let horizontalOverlap = (item.x < p.x + p.w && item.x + item.w > p.x);
                     
                     if (verticalDistance < 24 && horizontalOverlap) {
-                        var x1 = Math.min(p.x, item.x);
-                        var y1 = Math.min(p.y, item.y);
-                        var x2 = Math.max(p.x + p.w, item.x + item.w);
-                        var y2 = Math.max(p.y + p.h, item.y + item.h);
+                        let x1 = Math.min(p.x, item.x);
+                        let y1 = Math.min(p.y, item.y);
+                        let x2 = Math.max(p.x + p.w, item.x + item.w);
+                        let y2 = Math.max(p.y + p.h, item.y + item.h);
                         
                         p.x = x1;
                         p.y = y1;
@@ -392,14 +385,14 @@
         }
 
         function renderActiveCard() {
-            var container = document.getElementById('image-container');
+            const container = document.getElementById('image-container');
             container.innerHTML = '';
 
-            var activeCard = flashcardAssetsDeck[activeCardIndex];
+            const activeCard = flashcardAssetsDeck[activeCardIndex];
             container.appendChild(activeCard.canvas);
 
-            document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
-            document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
+            document.getElementById('page-stamp').innerText = `Source: Page ${activeCard.page}`;
+            document.getElementById('counter-stamp').innerText = `${activeCardIndex + 1} / ${flashcardAssetsDeck.length}`;
         }
 
         function navigateDeck(direction) {
@@ -411,44 +404,43 @@
 
         function shuffleDeck() {
             if (flashcardAssetsDeck.length <= 1) return;
-            flashcardAssetsDeck.sort(function() { return Math.random() - 0.5; });
+            flashcardAssetsDeck.sort(() => Math.random() - 0.5);
             activeCardIndex = 0;
             renderActiveCard();
         }
 
         // --- PWA NATIVE OVERLAY ENGINE LOGIC ---
-        var deferredPrompt;
-        var installContainer = document.getElementById('pwa-install-container');
-        var installBtn = document.getElementById('pwa-install-btn');
+        let deferredPrompt;
+        const installContainer = document.getElementById('pwa-install-container');
+        const installBtn = document.getElementById('pwa-install-btn');
 
-        window.addEventListener('beforeinstallprompt', function(e) {
+        window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
             installContainer.style.display = 'flex';
         });
 
-        installBtn.addEventListener('click', function() {
+        installBtn.addEventListener('click', async () => {
             if (!deferredPrompt) return;
             deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(function(choiceResult) {
-                if (choiceResult.outcome === 'accepted') {
-                    console.log('User approved ecosystem deployment onboarding.');
-                }
-                installContainer.style.display = 'none';
-                deferredPrompt = null;
-            });
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+                console.log('User approved ecosystem deployment onboarding.');
+            }
+            installContainer.style.display = 'none';
+            deferredPrompt = null;
         });
 
-        window.addEventListener('appinstalled', function() {
+        window.addEventListener('appinstalled', () => {
             installContainer.style.display = 'none';
             deferredPrompt = null;
         });
 
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
+            window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
-                    .then(function(reg) { console.log('Service Worker Registered Setup Hooked.'); })
-                    .catch(function(err) { console.log('Service Worker omitted setup execution:', err); });
+                    .then(reg => console.log('Service Worker Registered Setup Hooked.'))
+                    .catch(err => console.log('Service Worker omitted setup execution:', err));
             });
         }
     </script>
