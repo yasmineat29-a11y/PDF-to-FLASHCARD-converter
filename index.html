@@ -256,8 +256,9 @@
     </div>
 
     <script>
+        // Set workerSrc to empty string to emphasize inline thread fallback mechanism
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
         var flashcardAssetsDeck = [];
         var activeCardIndex = 0;
@@ -274,7 +275,7 @@
 
         var activeObjectUrls = [];
 
-        // --- DATABASE SUBSYSTEM SYSTEM ---
+        // --- STABLE INDEXEDDB BLOB STORAGE ENGINE ---
         var dbName = "FlashcarditDB";
         var dbVersion = 1;
         var db;
@@ -338,4 +339,372 @@
         }
 
         function saveLibraryProgress() {
-            if (!db || flashcardAssets
+            if (!db || flashcardAssetsDeck.length === 0) return;
+            var transaction = db.transaction(["library"], "readwrite");
+            var store = transaction.objectStore("library");
+            
+            var getReq = store.get("active_deck");
+            getReq.onsuccess = function() {
+                var existingRecord = getReq.result;
+                if (existingRecord) {
+                    existingRecord.activeIndex = activeCardIndex;
+                    store.put(existingRecord);
+                }
+            };
+        }
+
+        function clearSavedLibrary() {
+            if (!db) return;
+            var transaction = db.transaction(["library"], "readwrite");
+            var store = transaction.objectStore("library");
+            var clearReq = store.delete("active_deck");
+            clearReq.onsuccess = function() {
+                cleanupObjectUrls();
+                location.reload();
+            };
+        }
+
+        function handlePDFUpload(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+
+            var statusLabel = document.getElementById('status');
+            var uploadLabel = document.getElementById('upload-label-text');
+            
+            uploadLabel.innerText = "⏳ Processing...";
+            uploadLabel.style.backgroundColor = "#64748b";
+            statusLabel.style.display = 'block';
+            statusLabel.innerHTML = "<strong>Reading layout structure...</strong><br>Converting paragraphs into cards. Please don't close the tab.";
+            
+            document.getElementById('card-view').style.display = 'none';
+            document.getElementById('navigation-box').style.display = 'none';
+            
+            cleanupObjectUrls();
+            flashcardAssetsDeck = [];
+            activeCardIndex = 0;
+
+            var fileReader = new FileReader();
+            fileReader.onload = function() {
+                var typedarray = new Uint8Array(this.result);
+                
+                // FIXED: Setting disableWorker to true ensures it uses the main thread framework directly
+                pdfjsLib.getDocument({
+                    data: typedarray,
+                    disableWorker: true,
+                    disableAutoFetch: true,
+                    disableStream: true
+                }).promise.then(function(pdf) {
+                    var totalPages = pdf.numPages;
+                    var serializedDeckForDb = [];
+                    
+                    function processPage(pageNum) {
+                        if (pageNum > totalPages) {
+                            if (flashcardAssetsDeck.length === 0) {
+                                uploadLabel.innerText = "📁 Select PDF File";
+                                uploadLabel.style.backgroundColor = "#2563eb";
+                                statusLabel.innerHTML = "<strong>No readable text content found.</strong><br>This happens if your PDF is made of scanned images instead of selectable text.";
+                                return;
+                            }
+
+                            var transaction = db.transaction(["library"], "readwrite");
+                            var store = transaction.objectStore("library");
+                            store.put({
+                                id: "active_deck",
+                                activeIndex: activeCardIndex,
+                                deck: serializedDeckForDb
+                            }).onsuccess = function() {
+                                uploadLabel.innerText = "📁 Change PDF";
+                                uploadLabel.style.backgroundColor = "#2563eb";
+                                statusLabel.style.display = 'none';
+                                document.getElementById('card-view').style.display = 'flex';
+                                document.getElementById('navigation-box').style.display = 'flex';
+                                document.getElementById('clear-lib-btn').style.display = 'block';
+
+                                renderActiveCard();
+                            };
+                            return;
+                        }
+
+                        statusLabel.innerHTML = "<strong>Processing Page " + pageNum + " of " + totalPages + "...</strong><br>Building paragraph structures.";
+                        
+                        pdf.getPage(pageNum).then(function(page) {
+                            return page.getTextContent().then(function(textContent) {
+                                var renderScale = 1.5; 
+                                var viewport = page.getViewport({ scale: renderScale });
+                                var paragraphs = clusterTextItemsIntoParagraphs(textContent.items, viewport);
+
+                                if (paragraphs.length === 0) {
+                                    setTimeout(function() { processPage(pageNum + 1); }, 1);
+                                    return;
+                                }
+
+                                var renderCanvas = document.createElement('canvas');
+                                renderCanvas.width = viewport.width || 600;
+                                renderCanvas.height = viewport.height || 800;
+                                var renderContext = renderCanvas.getContext('2d');
+                                
+                                var renderTask = page.render({ canvasContext: renderContext, viewport: viewport });
+                                return renderTask.promise.then(function() {
+                                    var generatedBlobs = [];
+
+                                    for (var i = 0; i < paragraphs.length; i++) {
+                                        var p = paragraphs[i];
+                                        if (p.text.trim().length < 25) continue;
+
+                                        var padX = 20;
+                                        var padY = 20; 
+                                        
+                                        var x = p.x - padX;
+                                        var y = p.y - padY;
+                                        var w = p.w + (padX * 2);
+                                        var h = p.h + (padY * 2);
+
+                                        x = Math.max(0, x);
+                                        y = Math.max(0, y);
+                                        w = Math.min(renderCanvas.width - x, w);
+                                        h = Math.min(renderCanvas.height - y, h);
+
+                                        if (w <= 20 || h <= 20) continue;
+
+                                        var cropCanvas = document.createElement('canvas');
+                                        cropCanvas.width = w;
+                                        cropCanvas.height = h;
+                                        var ctx = cropCanvas.getContext('2d');
+                                        ctx.drawImage(renderCanvas, x, y, w, h, 0, 0, w, h);
+
+                                        generatedBlobs.push({
+                                            canvas: cropCanvas,
+                                            page: pageNum
+                                        });
+                                    }
+
+                                    function serializeBlobsSequentially(index) {
+                                        if (index >= generatedBlobs.length) {
+                                            setTimeout(function() { processPage(pageNum + 1); }, 1);
+                                            return;
+                                        }
+                                        var target = generatedBlobs[index];
+                                        target.canvas.toBlob(function(blob) {
+                                            if (blob) {
+                                                var objUrl = URL.createObjectURL(blob);
+                                                activeObjectUrls.push(objUrl);
+                                                
+                                                flashcardAssetsDeck.push({
+                                                    src: objUrl,
+                                                    page: target.page
+                                                });
+
+                                                serializedDeckForDb.push({
+                                                    page: target.page,
+                                                    blob: blob
+                                                });
+                                            }
+                                            serializeBlobsSequentially(index + 1);
+                                        }, "image/png");
+                                    }
+
+                                    serializeBlobsSequentially(0);
+                                });
+                            });
+                        }).catch(function(error) {
+                            console.error(error);
+                            setTimeout(function() { processPage(pageNum + 1); }, 1);
+                        });
+                    }
+
+                    processPage(1);
+
+                }).catch(function(error) {
+                    console.error(error);
+                    showErrorState();
+                });
+            };
+            
+            function showErrorState() {
+                uploadLabel.innerText = "📁 Select PDF File";
+                uploadLabel.style.backgroundColor = "#2563eb";
+                statusLabel.innerHTML = "<strong>Error analyzing file.</strong><br>Please make sure this is a valid unencrypted textbook PDF file layout.";
+            }
+
+            fileReader.readAsArrayBuffer(file);
+        }
+
+        function clusterTextItemsIntoParagraphs(items, viewport) {
+            var paragraphs = [];
+            if (!items || items.length === 0) return paragraphs;
+            
+            var transformedItems = items.map(function(item) {
+                var pdfRect = [item.transform[4], item.transform[5], item.transform[4] + item.width, item.transform[5] + item.height];
+                var canvasRect = viewport.convertToViewportRectangle(pdfRect);
+                var fontSize = Math.abs(item.transform[0] || item.transform[3] || 12);
+                
+                return {
+                    text: item.str,
+                    x: Math.min(canvasRect[0], canvasRect[2]),
+                    y: Math.min(canvasRect[1], canvasRect[3]) - (fontSize * 0.25), 
+                    w: Math.abs(canvasRect[2] - canvasRect[0]),
+                    h: Math.abs(canvasRect[3] - canvasRect[1]) + (fontSize * 0.5)
+                };
+            });
+
+            transformedItems.forEach(function(item) {
+                var merged = false;
+                for (var i = 0; i < paragraphs.length; i++) {
+                    var p = paragraphs[i];
+                    var verticalDistance = Math.abs(item.y - (p.y + p.h));
+                    var horizontalOverlap = (item.x < p.x + p.w && item.x + item.w > p.x);
+                    
+                    if (verticalDistance < 24 && horizontalOverlap) {
+                        var x1 = Math.min(p.x, item.x);
+                        var y1 = Math.min(p.y, item.y);
+                        var x2 = Math.max(p.x + p.w, item.x + item.w);
+                        var y2 = Math.max(p.y + p.h, item.y + item.h);
+                        
+                        p.x = x1;
+                        p.y = y1;
+                        p.w = x2 - x1;
+                        p.h = y2 - y1;
+                        p.text += " " + item.text;
+                        merged = true;
+                        break;
+                    }
+                }
+                if (!merged) {
+                    paragraphs.push({ x: item.x, y: item.y, w: item.w, h: item.h, text: item.text });
+                }
+            });
+
+            return paragraphs;
+        }
+
+        function renderActiveCard() {
+            var container = document.getElementById('image-container');
+            container.innerHTML = '';
+
+            if(!flashcardAssetsDeck[activeCardIndex]) return;
+
+            var activeCard = flashcardAssetsDeck[activeCardIndex];
+            
+            var imgElement = document.createElement('img');
+            imgElement.src = activeCard.src;
+            container.appendChild(imgElement);
+
+            document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
+            document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
+
+            resetZoomState(imgElement);
+            setupZoomGestures(container, imgElement);
+        }
+
+        function resetZoomState(target) {
+            currentScale = 1;
+            currentPanX = 0;
+            currentPanY = 0;
+            if(target) {
+                target.style.transform = `translate(0px, 0px) scale(1)`;
+            }
+        }
+
+        function setupZoomGestures(wrapper, element) {
+            wrapper.ontouchstart = function(e) {
+                if (e.touches.length === 2) {
+                    startScale = currentScale;
+                    startDistance = Math.hypot(
+                        e.touches[0].pageX - e.touches[1].pageX,
+                        e.touches[0].pageY - e.touches[1].pageY
+                    );
+                } else if (e.touches.length === 1) {
+                    isDragging = true;
+                    startPanX = e.touches[0].pageX - currentPanX;
+                    startPanY = e.touches[0].pageY - currentPanY;
+                }
+            };
+
+            wrapper.ontouchmove = function(e) {
+                if (e.touches.length === 2) {
+                    isDragging = false;
+                    var newDistance = Math.hypot(
+                        e.touches[0].pageX - e.touches[1].pageX,
+                        e.touches[0].pageY - e.touches[1].pageY
+                    );
+                    currentScale = Math.min(Math.max(startScale * (newDistance / startDistance), 1), 4);
+                } else if (e.touches.length === 1 && isDragging && currentScale > 1) {
+                    currentPanX = e.touches[0].pageX - startPanX;
+                    currentPanY = e.touches[0].pageY - startPanY;
+                }
+                
+                if (currentScale === 1) {
+                    currentPanX = 0;
+                    currentPanY = 0;
+                }
+                
+                element.style.transform = `translate(${currentPanX}px, ${currentPanY}px) scale(${currentScale})`;
+            };
+
+            wrapper.ontouchend = function(e) {
+                if (e.touches.length < 2) startDistance = 0;
+                if (e.touches.length === 0) isDragging = false;
+            };
+        }
+
+        function navigateDeck(direction) {
+            if (flashcardAssetsDeck.length === 0) return;
+            activeCardIndex += direction;
+            if (activeCardIndex < 0) activeCardIndex = 0;
+            if (activeCardIndex >= flashcardAssetsDeck.length) activeCardIndex = flashcardAssetsDeck.length - 1;
+            
+            renderActiveCard();
+            saveLibraryProgress();
+        }
+
+        function shuffleDeck() {
+            if (flashcardAssetsDeck.length <= 1) return;
+            
+            flashcardAssetsDeck.sort(function() { return Math.random() - 0.5; });
+            activeCardIndex = 0;
+            
+            renderActiveCard();
+            
+            if (db) {
+                var transaction = db.transaction(["library"], "readwrite");
+                var store = transaction.objectStore("library");
+                var getReq = store.get("active_deck");
+                getReq.onsuccess = function() {
+                    var record = getReq.result;
+                    if(record) {
+                        record.deck.sort(function() { return 0.5 - Math.random(); });
+                        record.activeIndex = 0;
+                        store.put(record);
+                    }
+                };
+            }
+        }
+
+        // --- PWA INSTALL ENGINE ---
+        var deferredPrompt;
+        var installContainer = document.getElementById('pwa-install-container');
+        var installBtn = document.getElementById('pwa-install-btn');
+
+        window.addEventListener('beforeinstallprompt', function(e) {
+            e.preventDefault();
+            deferredPrompt = e;
+            installContainer.style.display = 'flex';
+        });
+
+        installBtn.addEventListener('click', function() {
+            if (!deferredPrompt) return;
+            deferredPrompt.prompt();
+            deferredPrompt.userChoice.then(function() {
+                installContainer.style.display = 'none';
+                deferredPrompt = null;
+            });
+        });
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('sw.js').catch(function() {});
+            });
+        }
+    </script>
+</body>
+</html>
