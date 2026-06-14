@@ -110,7 +110,7 @@
             touch-action: none; 
         }
 
-        .card-image-wrapper canvas {
+        .card-image-wrapper img {
             max-width: 100% !important;
             max-height: 100% !important;
             width: auto !important;
@@ -136,3 +136,212 @@
             flex-shrink: 0;
             z-index: 5;
         }
+
+        .controls-row {
+            display: flex;
+            gap: 8px;
+            width: 100%;
+            padding: 16px 0;
+            flex-shrink: 0;
+        }
+
+        button, label.file-upload-label {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border-radius: 10px;
+            border: none;
+            font-size: 15px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+
+        label.file-upload-label {
+            background-color: var(--primary);
+            color: white;
+            flex: 2;
+        }
+
+        .btn-secondary {
+            background-color: #ffffff;
+            color: var(--text);
+            border: 1px solid #cbd5e1;
+            flex: 1;
+        }
+
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+            flex: 1;
+            padding: 14px 6px;
+            font-size: 13px;
+        }
+
+        .btn-shuffle {
+            background-color: var(--success);
+            color: white;
+            flex: 1.2;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .status-text {
+            font-size: 16px;
+            color: var(--text-muted);
+            text-align: center;
+            font-weight: 500;
+            padding: 40px 20px;
+            line-height: 1.5;
+            background: white;
+            border-radius: 12px;
+            border: 1px dashed #cbd5e1;
+            margin-top: 20px;
+        }
+        
+        .zoom-tip {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(15, 23, 42, 0.6);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h4 style="margin:0; font-weight: 700; color: #1e293b;">Flashcardit Workspace</h4>
+    </header>
+
+    <div id="pwa-install-container" class="install-banner">
+        <span>📱 Add Flashcardit to Home Screen</span>
+        <button class="btn-install-now" id="pwa-install-btn">Install</button>
+    </div>
+
+    <div id="app-workspace">
+        <div class="upload-container-row" id="top-upload-box">
+            <label class="file-upload-label" for="file-input" id="upload-label-text">📁 Select PDF File</label>
+            <input type="file" id="file-input" accept="application/pdf">
+            <button class="btn-danger" id="clear-lib-btn" style="display:none;" onclick="clearSavedLibrary()">Reset Deck</button>
+        </div>
+
+        <div id="status" class="status-text">
+            Tap the button above to upload a textbook or notes PDF.<br><br>
+            <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Your dynamic cards and progress library save continuously without mobile limits!</span>
+        </div>
+
+        <div class="flashcard-view" id="card-view" style="display: none;">
+            <div class="zoom-tip">Pinch to Zoom / Drag</div>
+            <div class="card-image-wrapper" id="image-container"></div>
+            <div class="card-metadata-footer">
+                <span id="page-stamp">Source: Page --</span>
+                <span id="counter-stamp">0 / 0</span>
+            </div>
+        </div>
+
+        <div class="controls-row" id="navigation-box" style="display: none;">
+            <button class="btn-secondary" onclick="navigateDeck(-1)">◀ Prev</button>
+            <button class="btn-shuffle" onclick="shuffleDeck()">🔀 Shuffle</button>
+            <button class="btn-secondary" onclick="navigateDeck(1)">Next ▶</button>
+        </div>
+    </div>
+
+    <script>
+        var pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js';
+
+        var flashcardAssetsDeck = [];
+        var activeCardIndex = 0;
+
+        // Touch Zoom & Pan UI variables 
+        var currentScale = 1;
+        var startScale = 1;
+        var startDistance = 0;
+        var currentPanX = 0;
+        var currentPanY = 0;
+        var startPanX = 0;
+        var startPanY = 0;
+        var isDragging = false;
+
+        // Object URLs tracking array to prevent mobile browser memory leaks
+        var activeObjectUrls = [];
+
+        // --- STABLE INDEXEDDB BLOB STORAGE ENGINE ---
+        var dbName = "FlashcarditDB";
+        var dbVersion = 1;
+        var db;
+
+        var request = indexedDB.open(dbName, dbVersion);
+        request.onupgradeneeded = function(e) {
+            var database = e.target.result;
+            if (!database.objectStoreNames.contains("library")) {
+                database.createObjectStore("library", { keyPath: "id" });
+            }
+        };
+        request.onsuccess = function(e) {
+            db = e.target.result;
+            checkSavedLibraryProgress();
+        };
+        request.onerror = function() {
+            console.error("Database initialization failed.");
+        };
+
+        document.getElementById('file-input').addEventListener('change', handlePDFUpload);
+
+        function cleanupObjectUrls() {
+            activeObjectUrls.forEach(function(url) {
+                URL.revokeObjectURL(url);
+            });
+            activeObjectUrls = [];
+        }
+
+        function checkSavedLibraryProgress() {
+            if (!db) return;
+            var transaction = db.transaction(["library"], "readonly");
+            var store = transaction.objectStore("library");
+            var getReq = store.get("active_deck");
+
+            getReq.onsuccess = function() {
+                var record = getReq.result;
+                if (record && record.deck && record.deck.length > 0) {
+                    cleanupObjectUrls();
+                    flashcardAssetsDeck = [];
+                    activeCardIndex = record.activeIndex || 0;
+
+                    record.deck.forEach(function(item) {
+                        // Generate dynamic object reference directly from saved Blob
+                        var objectUrl = URL.createObjectURL(item.blob);
+                        activeObjectUrls.push(objectUrl);
+
+                        flashcardAssetsDeck.push({
+                            src: objectUrl,
+                            page: item.page
+                        });
+                    });
+
+                    document.getElementById('status').style.display = 'none';
+                    document.getElementById('card-view').style.display = 'flex';
+                    document.getElementById('navigation-box').style.display = 'flex';
+                    document.getElementById('clear-lib-btn').style.display = 'block';
+                    document.getElementById('upload-label-text').innerText = "📁 Change PDF";
+                    
+                    renderActiveCard();
+                }
+            };
+        }
+
+        function saveLibraryProgress() {
+            if (!db || flashcardAssetsDeck.length === 0) return;
+
+            // Direct saving of native binary blobs avoids memory inflation 
+            var transaction = db.transaction(["library"], "readwrite");
+            var store = transaction.object
