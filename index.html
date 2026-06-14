@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Flashcardit - Mobile Paragraph Flashcards</title>
+    <title>Flashcardit - Sentence Slices</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -162,7 +162,7 @@
 
         <div id="status" class="status-text">
             Tap the button above to upload a textbook or notes PDF.<br><br>
-            <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Compatible with Android 4 Legacy Web Engines.</span>
+            <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Slices your text cleanly at every single period (.) mark.</span>
         </div>
 
         <button class="btn-save-lib" id="save-library-btn" onclick="commitDeckToIndexedDB()">📥 Add to Library</button>
@@ -190,7 +190,6 @@
             };
         }
 
-        // Explicitly force worker thread to false for older Android browsers
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
@@ -209,7 +208,6 @@
 
         var activeObjectUrls = [];
 
-        // --- INDEXEDDB SUBSYSTEM FOR ES5 ENGINE ---
         var dbName = "FlashcarditDBLegacy";
         var dbVersion = 1;
         var db;
@@ -332,7 +330,7 @@
             
             uploadLabel.innerText = "⏳ Processing...";
             statusLabel.style.display = 'block';
-            statusLabel.innerHTML = "<strong>Parsing Layout...</strong><br>Converting text segments into presentation blocks.";
+            statusLabel.innerHTML = "<strong>Parsing Layout...</strong><br>Slicing blocks line-by-line using sentence boundaries.";
             
             document.getElementById('card-view').style.display = 'none';
             document.getElementById('navigation-box').style.display = 'none';
@@ -347,7 +345,6 @@
             fileReader.onload = function() {
                 var typedarray = new Uint8Array(this.result);
                 
-                // ES5 Safe configuration initialization object
                 pdfjsLib.getDocument({
                     data: typedarray,
                     disableWorker: true,
@@ -360,7 +357,7 @@
                         if (pageNum > totalPages) {
                             if (flashcardAssetsDeck.length === 0) {
                                 uploadLabel.innerText = "📁 Select PDF File";
-                                statusLabel.innerHTML = "<strong>No selectable text blocks discovered.</strong>";
+                                statusLabel.innerHTML = "<strong>No selectable text segments discovered.</strong>";
                                 return;
                             }
 
@@ -378,15 +375,15 @@
                             return;
                         }
 
-                        statusLabel.innerHTML = "<strong>Reading Page " + pageNum + " of " + totalPages + "...</strong>";
+                        statusLabel.innerHTML = "<strong>Parsing Sentences on Page " + pageNum + " of " + totalPages + "...</strong>";
                         
                         pdf.getPage(pageNum).then(function(page) {
                             return page.getTextContent().then(function(textContent) {
-                                var renderScale = 1.2; 
+                                var renderScale = 1.3; 
                                 var viewport = page.getViewport({ scale: renderScale });
-                                var paragraphs = clusterTextItemsIntoParagraphs(textContent.items, viewport);
+                                var sentences = clusterTextItemsIntoSentences(textContent.items, viewport);
 
-                                if (paragraphs.length === 0) {
+                                if (sentences.length === 0) {
                                     setTimeout(function() { processPage(pageNum + 1); }, 1);
                                     return;
                                 }
@@ -400,24 +397,24 @@
                                 return renderTask.promise.then(function() {
                                     var generatedBlobs = [];
 
-                                    for (var i = 0; i < paragraphs.length; i++) {
-                                        var p = paragraphs[i];
-                                        if (p.text.replace(/^\s+|\s+$/g, '').length < 25) continue;
+                                    for (var i = 0; i < sentences.length; i++) {
+                                        var s = sentences[i];
+                                        if (s.text.replace(/^\s+|\s+$/g, '').length < 8) continue; // Skip single digits or tiny artifacts
 
-                                        var padX = 15;
-                                        var padY = 15; 
+                                        var padX = 12;
+                                        var padY = 8; 
                                         
-                                        var x = p.x - padX;
-                                        var y = p.y - padY;
-                                        var w = p.w + (padX * 2);
-                                        var h = p.h + (padY * 2);
+                                        var x = s.x - padX;
+                                        var y = s.y - padY;
+                                        var w = s.w + (padX * 2);
+                                        var h = s.h + (padY * 2);
 
                                         x = Math.max(0, x);
                                         y = Math.max(0, y);
                                         w = Math.min(renderCanvas.width - x, w);
                                         h = Math.min(renderCanvas.height - y, h);
 
-                                        if (w <= 15 || h <= 15) continue;
+                                        if (w <= 10 || h <= 10) continue;
 
                                         var cropCanvas = document.createElement('canvas');
                                         cropCanvas.width = w;
@@ -438,7 +435,6 @@
                                         }
                                         var target = generatedBlobs[index];
                                         
-                                        // Android 4 safe Canvas exporter logic
                                         target.canvas.toBlob(function(blob) {
                                             if (blob) {
                                                 var objUrl = URL.createObjectURL(blob);
@@ -481,56 +477,55 @@
             fileReader.readAsArrayBuffer(file);
         }
 
-        function clusterTextItemsIntoParagraphs(items, viewport) {
-            var paragraphs = [];
-            if (!items || items.length === 0) return paragraphs;
+        // Segment text nodes precisely by checking for the termination period (.) delimiter
+        function clusterTextItemsIntoSentences(items, viewport) {
+            var sentences = [];
+            if (!items || items.length === 0) return sentences;
             
-            var transformedItems = [];
+            var activeSentence = null;
+
             for (var k = 0; k < items.length; k++) {
                 var item = items[k];
+                if (!item.str || item.str.replace(/^\s+|\s+$/g, '').length === 0) continue;
+
                 var pdfRect = [item.transform[4], item.transform[5], item.transform[4] + item.width, item.transform[5] + item.height];
                 var canvasRect = viewport.convertToViewportRectangle(pdfRect);
                 var fontSize = Math.abs(item.transform[0] || item.transform[3] || 12);
                 
-                transformedItems.push({
-                    text: item.str,
-                    x: Math.min(canvasRect[0], canvasRect[2]),
-                    y: Math.min(canvasRect[1], canvasRect[3]) - (fontSize * 0.25), 
-                    w: Math.abs(canvasRect[2] - canvasRect[0]),
-                    h: Math.abs(canvasRect[3] - canvasRect[1]) + (fontSize * 0.5)
-                });
-            }
+                var x = Math.min(canvasRect[0], canvasRect[2]);
+                var y = Math.min(canvasRect[1], canvasRect[3]) - (fontSize * 0.25);
+                var w = Math.abs(canvasRect[2] - canvasRect[0]);
+                var h = Math.abs(canvasRect[3] - canvasRect[1]) + (fontSize * 0.5);
 
-            for (var m = 0; m < transformedItems.length; m++) {
-                var currentItem = transformedItems[m];
-                var merged = false;
-                
-                for (var i = 0; i < paragraphs.length; i++) {
-                    var p = paragraphs[i];
-                    var verticalDistance = Math.abs(currentItem.y - (p.y + p.h));
-                    var horizontalOverlap = (currentItem.x < p.x + p.w && currentItem.x + currentItem.w > p.x);
+                if (!activeSentence) {
+                    activeSentence = { x: x, y: y, w: w, h: h, text: item.str };
+                } else {
+                    // Span layout mapping coordinates update
+                    var x1 = Math.min(activeSentence.x, x);
+                    var y1 = Math.min(activeSentence.y, y);
+                    var x2 = Math.max(activeSentence.x + activeSentence.w, x + w);
+                    var y2 = Math.max(activeSentence.y + activeSentence.h, y + h);
                     
-                    if (verticalDistance < 24 && horizontalOverlap) {
-                        var x1 = Math.min(p.x, currentItem.x);
-                        var y1 = Math.min(p.y, currentItem.y);
-                        var x2 = Math.max(p.x + p.w, currentItem.x + currentItem.w);
-                        var y2 = Math.max(p.y + p.h, currentItem.y + currentItem.h);
-                        
-                        p.x = x1;
-                        p.y = y1;
-                        p.w = x2 - x1;
-                        p.h = y2 - y1;
-                        p.text += " " + currentItem.text;
-                        merged = true;
-                        break;
-                    }
+                    activeSentence.x = x1;
+                    activeSentence.y = y1;
+                    activeSentence.w = x2 - x1;
+                    activeSentence.h = y2 - y1;
+                    activeSentence.text += " " + item.str;
                 }
-                if (!merged) {
-                    paragraphs.push({ x: currentItem.x, y: currentItem.y, w: currentItem.w, h: currentItem.h, text: currentItem.text });
+
+                // If this text block ends with a sentence finalizer character, close bounds and push card tracking metadata
+                if (item.str.indexOf('.') !== -1) {
+                    sentences.push(activeSentence);
+                    activeSentence = null;
                 }
             }
 
-            return paragraphs;
+            // Push any trailing text strings without full period endings safely
+            if (activeSentence) {
+                sentences.push(activeSentence);
+            }
+
+            return sentences;
         }
 
         function renderActiveCard() {
