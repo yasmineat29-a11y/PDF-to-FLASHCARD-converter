@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Flashcardit - Sentence Slices</title>
+    <title>Flashcardit - Text Slices</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -33,6 +33,9 @@
         #app-workspace {
             padding: 12px;
             box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
         }
 
         .upload-container-row {
@@ -48,23 +51,30 @@
             overflow: hidden;
             border: 1px solid #e2e8f0;
             position: relative;
+            display: flex;
+            flex-direction: column;
         }
 
-        .card-image-wrapper {
+        .card-text-wrapper {
             width: 100%;
             height: 310px;
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
+            overflow-y: auto;
             background: #ffffff;
-            position: relative;
+            box-sizing: border-box;
+            padding: 24px;
+            text-align: center;
+            -webkit-overflow-scrolling: touch;
         }
 
-        .card-image-wrapper img {
+        .card-text-content {
+            font-size: 18px;
+            line-height: 1.6;
+            color: #0f172a;
+            word-wrap: break-word;
             max-width: 100%;
-            max-height: 100%;
-            display: block;
         }
 
         .card-metadata-footer {
@@ -162,13 +172,15 @@
 
         <div id="status" class="status-text">
             Tap the button above to upload a textbook or notes PDF.<br><br>
-            <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Enhanced auto-align mapping to fix side-text bleeding and page-clipping bugs.</span>
+            <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Extracts raw textbook text and partitions cleanly at every dot.</span>
         </div>
 
         <button class="btn-save-lib" id="save-library-btn" onclick="commitDeckToIndexedDB()">📥 Add to Library</button>
 
         <div class="flashcard-view" id="card-view" style="display: none;">
-            <div class="card-image-wrapper" id="image-container"></div>
+            <div class="card-text-wrapper">
+                <div class="card-text-content" id="text-container"></div>
+            </div>
             <div class="card-metadata-footer">
                 <span id="page-stamp">Source: Page --</span>
                 <span id="counter-stamp">0 / 0</span>
@@ -183,12 +195,6 @@
     </div>
 
     <script>
-        if (!Math.hypot) {
-            Math.hypot = function(x, y) {
-                return Math.sqrt(x * x + y * y);
-            };
-        }
-
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
@@ -196,18 +202,7 @@
         var activeCardIndex = 0;
         var serializedDeckForDb = []; 
 
-        var currentScale = 1;
-        var startScale = 1;
-        var startDistance = 0;
-        var currentPanX = 0;
-        var currentPanY = 0;
-        var startPanX = 0;
-        var startPanY = 0;
-        var isDragging = false;
-
-        var activeObjectUrls = [];
-
-        var dbName = "FlashcarditDBLegacy";
+        var dbName = "FlashcarditTextDB";
         var dbVersion = 1;
         var db;
 
@@ -228,13 +223,6 @@
 
         document.getElementById('file-input').addEventListener('change', handlePDFUpload);
 
-        function cleanupObjectUrls() {
-            for (var i = 0; i < activeObjectUrls.length; i++) {
-                URL.revokeObjectURL(activeObjectUrls[i]);
-            }
-            activeObjectUrls = [];
-        }
-
         function checkSavedLibraryProgress() {
             if (!db) return;
             var transaction = db.transaction(["library"], "readonly");
@@ -244,24 +232,12 @@
             getReq.onsuccess = function() {
                 var record = getReq.result;
                 if (record && record.deck && record.deck.length > 0) {
-                    cleanupObjectUrls();
-                    flashcardAssetsDeck = [];
+                    flashcardAssetsDeck = record.deck;
                     serializedDeckForDb = record.deck;
                     activeCardIndex = record.activeIndex || 0;
 
-                    for (var i = 0; i < record.deck.length; i++) {
-                        var item = record.deck[i];
-                        var objectUrl = URL.createObjectURL(item.blob);
-                        activeObjectUrls.push(objectUrl);
-
-                        flashcardAssetsDeck.push({
-                            src: objectUrl,
-                            page: item.page
-                        });
-                    }
-
                     document.getElementById('status').style.display = 'none';
-                    document.getElementById('card-view').style.display = 'block';
+                    document.getElementById('card-view').style.display = 'flex';
                     document.getElementById('navigation-box').style.display = 'flex';
                     document.getElementById('clear-lib-btn').style.display = 'block';
                     document.getElementById('save-library-btn').style.display = 'none';
@@ -315,7 +291,6 @@
             var store = transaction.objectStore("library");
             var clearReq = store.delete("active_deck");
             clearReq.onsuccess = function() {
-                cleanupObjectUrls();
                 location.reload();
             };
         }
@@ -327,15 +302,14 @@
             var statusLabel = document.getElementById('status');
             var uploadLabel = document.getElementById('upload-label-text');
             
-            uploadLabel.innerText = "⏳ Processing...";
+            uploadLabel.innerText = "⏳ Extracting...";
             statusLabel.style.display = 'block';
-            statusLabel.innerHTML = "<strong>Analyzing Page Matrix...</strong><br>Ensuring clean coordinate isolation frames.";
+            statusLabel.innerHTML = "<strong>Reading Text Stream...</strong><br>Converting structural document sentences directly into flashcards.";
             
             document.getElementById('card-view').style.display = 'none';
             document.getElementById('navigation-box').style.display = 'none';
             document.getElementById('save-library-btn').style.display = 'none';
             
-            cleanupObjectUrls();
             flashcardAssetsDeck = [];
             serializedDeckForDb = [];
             activeCardIndex = 0;
@@ -356,14 +330,14 @@
                         if (pageNum > totalPages) {
                             if (flashcardAssetsDeck.length === 0) {
                                 uploadLabel.innerText = "📁 Select PDF File";
-                                statusLabel.innerHTML = "<strong>No text items extracted.</strong>";
+                                statusLabel.innerHTML = "<strong>No usable text layers discovered.</strong>";
                                 return;
                             }
 
                             uploadLabel.innerText = "📁 Change PDF";
                             statusLabel.style.display = 'none';
                             
-                            document.getElementById('card-view').style.display = 'block';
+                            document.getElementById('card-view').style.display = 'flex';
                             document.getElementById('navigation-box').style.display = 'flex';
                             
                             var saveBtn = document.getElementById('save-library-btn');
@@ -374,88 +348,33 @@
                             return;
                         }
 
-                        statusLabel.innerHTML = "<strong>Isolating Text Lines: Page " + pageNum + " / " + totalPages + "</strong>";
+                        statusLabel.innerHTML = "<strong>Extracting Sentences: Page " + pageNum + " / " + totalPages + "</strong>";
                         
                         pdf.getPage(pageNum).then(function(page) {
                             return page.getTextContent().then(function(textContent) {
-                                var renderScale = 1.5; 
-                                var viewport = page.getViewport({ scale: renderScale });
-                                var sentences = clusterTextItemsIntoSentences(textContent.items, viewport);
-
-                                if (sentences.length === 0) {
-                                    setTimeout(function() { processPage(pageNum + 1); }, 1);
-                                    return;
+                                var pageRawText = "";
+                                
+                                for (var i = 0; i < textContent.items.length; i++) {
+                                    pageRawText += textContent.items[i].str + " ";
                                 }
 
-                                var renderCanvas = document.createElement('canvas');
-                                renderCanvas.width = viewport.width || 600;
-                                renderCanvas.height = viewport.height || 800;
-                                var renderContext = renderCanvas.getContext('2d');
-                                
-                                var renderTask = page.render({ canvasContext: renderContext, viewport: viewport });
-                                return renderTask.promise.then(function() {
-                                    var generatedBlobs = [];
-
-                                    for (var i = 0; i < sentences.length; i++) {
-                                        var s = sentences[i];
-                                        if (s.text.replace(/^\s+|\s+$/g, '').length < 6) continue;
-
-                                        // Apply strict bounds filtering to eliminate empty spaces and side leaks
-                                        var padX = 8;
-                                        var padY = 4; 
-                                        
-                                        var x = s.x - padX;
-                                        var y = s.y - padY;
-                                        var w = s.w + (padX * 2);
-                                        var h = s.h + (padY * 2);
-
-                                        x = Math.max(0, x);
-                                        y = Math.max(0, y);
-                                        w = Math.min(renderCanvas.width - x, w);
-                                        h = Math.min(renderCanvas.height - y, h);
-
-                                        if (w <= 15 || h <= 8) continue;
-
-                                        var cropCanvas = document.createElement('canvas');
-                                        cropCanvas.width = w;
-                                        cropCanvas.height = h;
-                                        var ctx = cropCanvas.getContext('2d');
-                                        ctx.drawImage(renderCanvas, x, y, w, h, 0, 0, w, h);
-
-                                        generatedBlobs.push({
-                                            canvas: cropCanvas,
+                                // Handle clean line breaks and isolate sentences by splitting at standard period points
+                                var rawSlices = pageRawText.split('.');
+                                for (var j = 0; j < rawSlices.length; j++) {
+                                    var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
+                                    
+                                    // Make sure we aren't creating cards out of empty punctuation fragments
+                                    if (sanitizedSentence.length > 6) {
+                                        var itemObject = {
+                                            text: sanitizedSentence + ".",
                                             page: pageNum
-                                        });
+                                        };
+                                        flashcardAssetsDeck.push(itemObject);
+                                        serializedDeckForDb.push(itemObject);
                                     }
+                                }
 
-                                    function serializeBlobsSequentially(index) {
-                                        if (index >= generatedBlobs.length) {
-                                            setTimeout(function() { processPage(pageNum + 1); }, 1);
-                                            return;
-                                        }
-                                        var target = generatedBlobs[index];
-                                        
-                                        target.canvas.toBlob(function(blob) {
-                                            if (blob) {
-                                                var objUrl = URL.createObjectURL(blob);
-                                                activeObjectUrls.push(objUrl);
-                                                
-                                                flashcardAssetsDeck.push({
-                                                    src: objUrl,
-                                                    page: target.page
-                                                });
-
-                                                serializedDeckForDb.push({
-                                                    page: target.page,
-                                                    blob: blob
-                                                });
-                                            }
-                                            serializeBlobsSequentially(index + 1);
-                                        }, "image/png");
-                                    }
-
-                                    serializeBlobsSequentially(0);
-                                });
+                                setTimeout(function() { processPage(pageNum + 1); }, 1);
                             });
                         }).catch(function(error) {
                             setTimeout(function() { processPage(pageNum + 1); }, 1);
@@ -471,143 +390,23 @@
             
             function showErrorState() {
                 uploadLabel.innerText = "📁 Select PDF File";
-                statusLabel.innerHTML = "<strong>Error analyzing layout data.</strong>";
+                statusLabel.innerHTML = "<strong>Error reading text characters from this structure.</strong>";
             }
 
             fileReader.readAsArrayBuffer(file);
         }
 
-        // Structural fix: Checks line coordinates explicitly instead of assuming layout reading sequence
-        function clusterTextItemsIntoSentences(items, viewport) {
-            var sentences = [];
-            if (!items || items.length === 0) return sentences;
-            
-            var activeSentence = null;
-
-            for (var k = 0; k < items.length; k++) {
-                var item = items[k];
-                if (!item.str || item.str.replace(/^\s+|\s+$/g, '').length === 0) continue;
-
-                var pdfRect = [item.transform[4], item.transform[5], item.transform[4] + item.width, item.transform[5] + item.height];
-                var canvasRect = viewport.convertToViewportRectangle(pdfRect);
-                var fontSize = Math.abs(item.transform[0] || item.transform[3] || 12);
-                
-                var x = Math.min(canvasRect[0], canvasRect[2]);
-                var y = Math.min(canvasRect[1], canvasRect[3]) - (fontSize * 0.15);
-                var w = Math.abs(canvasRect[2] - canvasRect[0]);
-                var h = Math.abs(canvasRect[3] - canvasRect[1]) + (fontSize * 0.3);
-
-                if (!activeSentence) {
-                    activeSentence = { x: x, y: y, w: w, h: h, text: item.str };
-                } else {
-                    // CRITICAL FIX: If a text chunk shifts drastically sideways or skips lines vertically, 
-                    // it belongs to a different block. Close current block to prevent whole-page stretching.
-                    var verticalShift = Math.abs(y - activeSentence.y);
-                    var horizontalGap = x - (activeSentence.x + activeSentence.w);
-
-                    if (verticalShift > (fontSize * 2.5) || horizontalGap > 120) {
-                        sentences.push(activeSentence);
-                        activeSentence = { x: x, y: y, w: w, h: h, text: item.str };
-                    } else {
-                        // Merge smoothly
-                        var x1 = Math.min(activeSentence.x, x);
-                        var y1 = Math.min(activeSentence.y, y);
-                        var x2 = Math.max(activeSentence.x + activeSentence.w, x + w);
-                        var y2 = Math.max(activeSentence.y + activeSentence.h, y + h);
-                        
-                        activeSentence.x = x1;
-                        activeSentence.y = y1;
-                        activeSentence.w = x2 - x1;
-                        activeSentence.h = y2 - y1;
-                        activeSentence.text += " " + item.str;
-                    }
-                }
-
-                // Slice immediately if sentence endpoint delimiter found
-                if (item.str.indexOf('.') !== -1) {
-                    sentences.push(activeSentence);
-                    activeSentence = null;
-                }
-            }
-
-            if (activeSentence) {
-                sentences.push(activeSentence);
-            }
-
-            return sentences;
-        }
-
         function renderActiveCard() {
-            var container = document.getElementById('image-container');
+            var container = document.getElementById('text-container');
             container.innerHTML = '';
 
             if(!flashcardAssetsDeck[activeCardIndex]) return;
 
             var activeCard = flashcardAssetsDeck[activeCardIndex];
-            
-            var imgElement = document.createElement('img');
-            imgElement.src = activeCard.src;
-            container.appendChild(imgElement);
+            container.innerText = activeCard.text;
 
             document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
             document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
-
-            resetZoomState(imgElement);
-            setupZoomGestures(container, imgElement);
-        }
-
-        function resetZoomState(target) {
-            currentScale = 1;
-            currentPanX = 0;
-            currentPanY = 0;
-            if(target) {
-                target.style.transform = 'translate(0px, 0px) scale(1)';
-                target.style.webkitTransform = 'translate(0px, 0px) scale(1)';
-            }
-        }
-
-        function setupZoomGestures(wrapper, element) {
-            wrapper.ontouchstart = function(e) {
-                if (e.touches.length === 2) {
-                    startScale = currentScale;
-                    startDistance = Math.hypot(
-                        e.touches[0].pageX - e.touches[1].pageX,
-                        e.touches[0].pageY - e.touches[1].pageY
-                    );
-                } else if (e.touches.length === 1) {
-                    isDragging = true;
-                    startPanX = e.touches[0].pageX - currentPanX;
-                    startPanY = e.touches[0].pageY - currentPanY;
-                }
-            };
-
-            wrapper.ontouchmove = function(e) {
-                if (e.touches.length === 2) {
-                    isDragging = false;
-                    var newDistance = Math.hypot(
-                        e.touches[0].pageX - e.touches[1].pageX,
-                        e.touches[0].pageY - e.touches[1].pageY
-                    );
-                    currentScale = Math.min(Math.max(startScale * (newDistance / startDistance), 1), 4);
-                } else if (e.touches.length === 1 && isDragging && currentScale > 1) {
-                    currentPanX = e.touches[0].pageX - startPanX;
-                    currentPanY = e.touches[0].pageY - startPanY;
-                }
-                
-                if (currentScale === 1) {
-                    currentPanX = 0;
-                    currentPanY = 0;
-                }
-                
-                var transformRule = 'translate(' + currentPanX + 'px, ' + currentPanY + 'px) scale(' + currentScale + ')';
-                element.style.transform = transformRule;
-                element.style.webkitTransform = transformRule;
-            };
-
-            wrapper.ontouchend = function(e) {
-                if (e.touches.length < 2) startDistance = 0;
-                if (e.touches.length === 0) isDragging = false;
-            };
         }
 
         function navigateDeck(direction) {
