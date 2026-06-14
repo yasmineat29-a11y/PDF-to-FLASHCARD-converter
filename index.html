@@ -98,7 +98,6 @@
             position: relative;
         }
 
-        /* Fixed viewport container to stabilize hardware zooming */
         .card-image-wrapper {
             flex: 1;
             display: flex;
@@ -108,10 +107,9 @@
             overflow: hidden;
             background: #ffffff;
             position: relative;
-            touch-action: none; /* Prevents native window scrolling during gesture controls */
+            touch-action: none; 
         }
 
-        /* CSS Transform targeted element for performance */
         .card-image-wrapper canvas {
             max-width: 100% !important;
             max-height: 100% !important;
@@ -233,12 +231,12 @@
         <div class="upload-container-row" id="top-upload-box">
             <label class="file-upload-label" for="file-input" id="upload-label-text">📁 Select PDF File</label>
             <input type="file" id="file-input" accept="application/pdf">
-            <button class="btn-danger" id="clear-lib-btn" style="display:none;" onclick="clearSavedLibrary()">Reset Progress</button>
+            <button class="btn-danger" id="clear-lib-btn" style="display:none;" onclick="clearSavedLibrary()">Reset Deck</button>
         </div>
 
         <div id="status" class="status-text">
             Tap the button above to upload a textbook or notes PDF.<br><br>
-            <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Make sure the file contains regular selectable text (not scanned images). Your progress will be saved automatically!</span>
+            <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Your dynamic cards and progress library save continuously without mobile limits!</span>
         </div>
 
         <div class="flashcard-view" id="card-view" style="display: none;">
@@ -263,9 +261,8 @@
 
         var flashcardAssetsDeck = [];
         var activeCardIndex = 0;
-        var originalFileName = "Document";
 
-        // Global Gesture State Variables for Mobile Zoom and Pan
+        // Touch Zoom & Pan UI variables 
         var currentScale = 1;
         var startScale = 1;
         var startDistance = 0;
@@ -275,23 +272,42 @@
         var startPanY = 0;
         var isDragging = false;
 
+        // --- ASYNC HIGH-CAPACITY STORAGE ENGINE (INDEXEDDB) ---
+        var dbName = "FlashcarditDB";
+        var dbVersion = 1;
+        var db;
+
+        var request = indexedDB.open(dbName, dbVersion);
+        request.onupgradeneeded = function(e) {
+            var database = e.target.result;
+            if (!database.objectStoreNames.contains("library")) {
+                database.createObjectStore("library", { keyPath: "id" });
+            }
+        };
+        request.onsuccess = function(e) {
+            db = e.target.result;
+            checkSavedLibraryProgress();
+        };
+        request.onerror = function() {
+            console.error("Database initialization failed.");
+        };
+
         document.getElementById('file-input').addEventListener('change', handlePDFUpload);
 
-        // Run Library Verification Engine upon interface initial boot
-        window.addEventListener('DOMContentLoaded', checkSavedLibraryProgress);
-
         function checkSavedLibraryProgress() {
-            var storedDeck = localStorage.getItem('flashcardit_saved_deck');
-            var storedIndex = localStorage.getItem('flashcardit_active_index');
-            var storedName = localStorage.getItem('flashcardit_file_name');
+            if (!db) return;
+            var transaction = db.transaction(["library"], "readonly");
+            var store = transaction.objectStore("library");
+            var getReq = store.get("active_deck");
 
-            if (storedDeck && storedIndex !== null) {
-                try {
-                    var parsedMeta = JSON.parse(storedDeck);
-                    originalFileName = storedName || "Saved Session";
+            getReq.onsuccess = function() {
+                var record = getReq.result;
+                if (record && record.deck && record.deck.length > 0) {
                     flashcardAssetsDeck = [];
+                    activeCardIndex = record.activeIndex || 0;
 
-                    parsedMeta.forEach(function(item) {
+                    var loadedCount = 0;
+                    record.deck.forEach(function(item, idx) {
                         var offscreenCanvas = document.createElement('canvas');
                         offscreenCanvas.width = item.w;
                         offscreenCanvas.height = item.h;
@@ -300,12 +316,12 @@
                         var img = new Image();
                         img.onload = function() {
                             ctx.drawImage(img, 0, 0);
-                            // Refresh layout viewport if index matches completely
-                            if(flashcardAssetsDeck.filter(Boolean).length === parsedMeta.length) {
+                            loadedCount++;
+                            if (loadedCount === record.deck.length) {
                                 renderActiveCard();
                             }
                         };
-                        img.src = item.dataUrl;
+                        img.src = URL.createObjectURL(item.blob);
 
                         flashcardAssetsDeck.push({
                             canvas: offscreenCanvas,
@@ -313,56 +329,56 @@
                         });
                     });
 
-                    activeCardIndex = parseInt(storedIndex, 10);
-                    
                     document.getElementById('status').style.display = 'none';
                     document.getElementById('card-view').style.display = 'flex';
                     document.getElementById('navigation-box').style.display = 'flex';
                     document.getElementById('clear-lib-btn').style.display = 'block';
-                    
-                    var uploadLabel = document.getElementById('upload-label-text');
-                    uploadLabel.innerText = "📁 Change PDF";
-                    
-                    setTimeout(renderActiveCard, 300); 
-                } catch(e) {
-                    console.error("Library recovery failed", e);
-                    clearSavedLibrary();
+                    document.getElementById('upload-label-text').innerText = "📁 Change PDF";
                 }
-            }
+            };
         }
 
         function saveLibraryProgress() {
-            if (flashcardAssetsDeck.length === 0) return;
-            try {
-                var serializedData = flashcardAssetsDeck.map(function(card) {
-                    return {
-                        page: card.page,
-                        w: card.canvas.width,
-                        h: card.canvas.height,
-                        dataUrl: card.canvas.toDataURL("image/png")
-                    };
+            if (!db || flashcardAssetsDeck.length === 0) return;
+
+            var processPromises = flashcardAssetsDeck.map(function(card) {
+                return new Promise(function(resolve) {
+                    card.canvas.toBlob(function(blob) {
+                        resolve({
+                            page: card.page,
+                            w: card.canvas.width,
+                            h: card.canvas.height,
+                            blob: blob
+                        });
+                    }, "image/png");
                 });
-                localStorage.setItem('flashcardit_saved_deck', JSON.stringify(serializedData));
-                localStorage.setItem('flashcardit_active_index', activeCardIndex);
-                localStorage.setItem('flashcardit_file_name', originalFileName);
-                document.getElementById('clear-lib-btn').style.display = 'block';
-            } catch (e) {
-                console.warn("Storage cap hit. Local library progress is limited to standard document clusters.", e);
-            }
+            });
+
+            Promise.all(processPromises).then(function(serializedDeck) {
+                var transaction = db.transaction(["library"], "readwrite");
+                var store = transaction.objectStore("library");
+                store.put({
+                    id: "active_deck",
+                    activeIndex: activeCardIndex,
+                    deck: serializedDeck
+                });
+            });
         }
 
         function clearSavedLibrary() {
-            localStorage.removeItem('flashcardit_saved_deck');
-            localStorage.removeItem('flashcardit_active_index');
-            localStorage.removeItem('flashcardit_file_name');
-            location.reload();
+            if (!db) return;
+            var transaction = db.transaction(["library"], "readwrite");
+            var store = transaction.objectStore("library");
+            var clearReq = store.delete("active_deck");
+            clearReq.onsuccess = function() {
+                location.reload();
+            };
         }
 
         function handlePDFUpload(event) {
             var file = event.target.files[0];
             if (!file) return;
 
-            originalFileName = file.name;
             var statusLabel = document.getElementById('status');
             var uploadLabel = document.getElementById('upload-label-text');
             
@@ -526,7 +542,6 @@
             var container = document.getElementById('image-container');
             container.innerHTML = '';
 
-            // Guard rails check for unexpected data resets
             if(!flashcardAssetsDeck[activeCardIndex]) return;
 
             var activeCard = flashcardAssetsDeck[activeCardIndex];
@@ -536,7 +551,6 @@
             document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
             document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
 
-            // Reset dynamic zoom/pan state properties on card switches
             resetZoomState(activeCanvas);
             setupZoomGestures(container, activeCanvas);
         }
@@ -550,96 +564,10 @@
             }
         }
 
-        // Native Pinch-To-Zoom and Drag Matrix Manipulation Engine
         function setupZoomGestures(wrapper, element) {
-            wrapper.addEventListener('touchstart', function(e) {
+            wrapper.ontouchstart = function(e) {
                 if (e.touches.length === 2) {
-                    // Zoom init calculations
                     startScale = currentScale;
                     startDistance = Math.hypot(
                         e.touches[0].pageX - e.touches[1].pageX,
-                        e.touches[0].pageY - e.touches[1].pageY
-                    );
-                } else if (e.touches.length === 1) {
-                    // Drag pan init calculations
-                    isDragging = true;
-                    startPanX = e.touches[0].pageX - currentPanX;
-                    startPanY = e.touches[0].pageY - currentPanY;
-                }
-            }, { passive: true });
-
-            wrapper.addEventListener('touchmove', function(e) {
-                if (e.touches.length === 2) {
-                    isDragging = false;
-                    var newDistance = Math.hypot(
-                        e.touches[0].pageX - e.touches[1].pageX,
-                        e.touches[0].pageY - e.touches[1].pageY
-                    );
-                    // Safe limits for dynamic scaling configurations (1x to 4x)
-                    currentScale = Math.min(Math.max(startScale * (newDistance / startDistance), 1), 4);
-                } else if (e.touches.length === 1 && isDragging && currentScale > 1) {
-                    currentPanX = e.touches[0].pageX - startPanX;
-                    currentPanY = e.touches[0].pageY - startPanY;
-                }
-                
-                // Safe fallbacks to prevent dragging outside logical thresholds when not zoomed
-                if (currentScale === 1) {
-                    currentPanX = 0;
-                    currentPanY = 0;
-                }
-                
-                element.style.transform = `translate(${currentPanX}px, ${currentPanY}px) scale(${currentScale})`;
-            }, { passive: true });
-
-            wrapper.addEventListener('touchend', function(e) {
-                if (e.touches.length < 2) startDistance = 0;
-                if (e.touches.length === 0) isDragging = false;
-            }, { passive: true });
-        }
-
-        function navigateDeck(direction) {
-            activeCardIndex += direction;
-            if (activeCardIndex < 0) activeCardIndex = 0;
-            if (activeCardIndex >= flashcardAssetsDeck.length) activeCardIndex = flashcardAssetsDeck.length - 1;
-            
-            renderActiveCard();
-            localStorage.setItem('flashcardit_active_index', activeCardIndex);
-        }
-
-        function shuffleDeck() {
-            if (flashcardAssetsDeck.length <= 1) return;
-            flashcardAssetsDeck.sort(function() { return Math.random() - 0.5; });
-            activeCardIndex = 0;
-            
-            renderActiveCard();
-            saveLibraryProgress();
-        }
-
-        // --- PWA INSTALL ENGINE ---
-        var deferredPrompt;
-        var installContainer = document.getElementById('pwa-install-container');
-        var installBtn = document.getElementById('pwa-install-btn');
-
-        window.addEventListener('beforeinstallprompt', function(e) {
-            e.preventDefault();
-            deferredPrompt = e;
-            installContainer.style.display = 'flex';
-        });
-
-        installBtn.addEventListener('click', function() {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            deferredPrompt.userChoice.then(function(choiceResult) {
-                installContainer.style.display = 'none';
-                deferredPrompt = null;
-            });
-        });
-
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js').catch(function(err) {});
-            });
-        }
-    </script>
-</body>
-</html>
+                        e.touches[0].pageY - e.
