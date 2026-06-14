@@ -162,7 +162,7 @@
 
         <div id="status" class="status-text">
             Tap the button above to upload a textbook or notes PDF.<br><br>
-            <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Slices your text cleanly at every single period (.) mark.</span>
+            <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Enhanced auto-align mapping to fix side-text bleeding and page-clipping bugs.</span>
         </div>
 
         <button class="btn-save-lib" id="save-library-btn" onclick="commitDeckToIndexedDB()">📥 Add to Library</button>
@@ -183,7 +183,6 @@
     </div>
 
     <script>
-        // Android 4 Math.hypot Polyfill
         if (!Math.hypot) {
             Math.hypot = function(x, y) {
                 return Math.sqrt(x * x + y * y);
@@ -330,7 +329,7 @@
             
             uploadLabel.innerText = "⏳ Processing...";
             statusLabel.style.display = 'block';
-            statusLabel.innerHTML = "<strong>Parsing Layout...</strong><br>Slicing blocks line-by-line using sentence boundaries.";
+            statusLabel.innerHTML = "<strong>Analyzing Page Matrix...</strong><br>Ensuring clean coordinate isolation frames.";
             
             document.getElementById('card-view').style.display = 'none';
             document.getElementById('navigation-box').style.display = 'none';
@@ -357,7 +356,7 @@
                         if (pageNum > totalPages) {
                             if (flashcardAssetsDeck.length === 0) {
                                 uploadLabel.innerText = "📁 Select PDF File";
-                                statusLabel.innerHTML = "<strong>No selectable text segments discovered.</strong>";
+                                statusLabel.innerHTML = "<strong>No text items extracted.</strong>";
                                 return;
                             }
 
@@ -375,11 +374,11 @@
                             return;
                         }
 
-                        statusLabel.innerHTML = "<strong>Parsing Sentences on Page " + pageNum + " of " + totalPages + "...</strong>";
+                        statusLabel.innerHTML = "<strong>Isolating Text Lines: Page " + pageNum + " / " + totalPages + "</strong>";
                         
                         pdf.getPage(pageNum).then(function(page) {
                             return page.getTextContent().then(function(textContent) {
-                                var renderScale = 1.3; 
+                                var renderScale = 1.5; 
                                 var viewport = page.getViewport({ scale: renderScale });
                                 var sentences = clusterTextItemsIntoSentences(textContent.items, viewport);
 
@@ -399,10 +398,11 @@
 
                                     for (var i = 0; i < sentences.length; i++) {
                                         var s = sentences[i];
-                                        if (s.text.replace(/^\s+|\s+$/g, '').length < 8) continue; // Skip single digits or tiny artifacts
+                                        if (s.text.replace(/^\s+|\s+$/g, '').length < 6) continue;
 
-                                        var padX = 12;
-                                        var padY = 8; 
+                                        // Apply strict bounds filtering to eliminate empty spaces and side leaks
+                                        var padX = 8;
+                                        var padY = 4; 
                                         
                                         var x = s.x - padX;
                                         var y = s.y - padY;
@@ -414,7 +414,7 @@
                                         w = Math.min(renderCanvas.width - x, w);
                                         h = Math.min(renderCanvas.height - y, h);
 
-                                        if (w <= 10 || h <= 10) continue;
+                                        if (w <= 15 || h <= 8) continue;
 
                                         var cropCanvas = document.createElement('canvas');
                                         cropCanvas.width = w;
@@ -477,7 +477,7 @@
             fileReader.readAsArrayBuffer(file);
         }
 
-        // Segment text nodes precisely by checking for the termination period (.) delimiter
+        // Structural fix: Checks line coordinates explicitly instead of assuming layout reading sequence
         function clusterTextItemsIntoSentences(items, viewport) {
             var sentences = [];
             if (!items || items.length === 0) return sentences;
@@ -493,34 +493,43 @@
                 var fontSize = Math.abs(item.transform[0] || item.transform[3] || 12);
                 
                 var x = Math.min(canvasRect[0], canvasRect[2]);
-                var y = Math.min(canvasRect[1], canvasRect[3]) - (fontSize * 0.25);
+                var y = Math.min(canvasRect[1], canvasRect[3]) - (fontSize * 0.15);
                 var w = Math.abs(canvasRect[2] - canvasRect[0]);
-                var h = Math.abs(canvasRect[3] - canvasRect[1]) + (fontSize * 0.5);
+                var h = Math.abs(canvasRect[3] - canvasRect[1]) + (fontSize * 0.3);
 
                 if (!activeSentence) {
                     activeSentence = { x: x, y: y, w: w, h: h, text: item.str };
                 } else {
-                    // Span layout mapping coordinates update
-                    var x1 = Math.min(activeSentence.x, x);
-                    var y1 = Math.min(activeSentence.y, y);
-                    var x2 = Math.max(activeSentence.x + activeSentence.w, x + w);
-                    var y2 = Math.max(activeSentence.y + activeSentence.h, y + h);
-                    
-                    activeSentence.x = x1;
-                    activeSentence.y = y1;
-                    activeSentence.w = x2 - x1;
-                    activeSentence.h = y2 - y1;
-                    activeSentence.text += " " + item.str;
+                    // CRITICAL FIX: If a text chunk shifts drastically sideways or skips lines vertically, 
+                    // it belongs to a different block. Close current block to prevent whole-page stretching.
+                    var verticalShift = Math.abs(y - activeSentence.y);
+                    var horizontalGap = x - (activeSentence.x + activeSentence.w);
+
+                    if (verticalShift > (fontSize * 2.5) || horizontalGap > 120) {
+                        sentences.push(activeSentence);
+                        activeSentence = { x: x, y: y, w: w, h: h, text: item.str };
+                    } else {
+                        // Merge smoothly
+                        var x1 = Math.min(activeSentence.x, x);
+                        var y1 = Math.min(activeSentence.y, y);
+                        var x2 = Math.max(activeSentence.x + activeSentence.w, x + w);
+                        var y2 = Math.max(activeSentence.y + activeSentence.h, y + h);
+                        
+                        activeSentence.x = x1;
+                        activeSentence.y = y1;
+                        activeSentence.w = x2 - x1;
+                        activeSentence.h = y2 - y1;
+                        activeSentence.text += " " + item.str;
+                    }
                 }
 
-                // If this text block ends with a sentence finalizer character, close bounds and push card tracking metadata
+                // Slice immediately if sentence endpoint delimiter found
                 if (item.str.indexOf('.') !== -1) {
                     sentences.push(activeSentence);
                     activeSentence = null;
                 }
             }
 
-            // Push any trailing text strings without full period endings safely
             if (activeSentence) {
                 sentences.push(activeSentence);
             }
