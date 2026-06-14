@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flashcardit">
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <style>
         :root {
             --bg-color: #f8fafc;
@@ -257,7 +257,7 @@
 
     <script>
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.6.347/pdf.worker.min.js';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
         var flashcardAssetsDeck = [];
         var activeCardIndex = 0;
@@ -272,10 +272,9 @@
         var startPanY = 0;
         var isDragging = false;
 
-        // Object URLs tracking array to prevent mobile browser memory leaks
         var activeObjectUrls = [];
 
-        // --- STABLE INDEXEDDB BLOB STORAGE ENGINE ---
+        // --- DATABASE SUBSYSTEM SYSTEM ---
         var dbName = "FlashcarditDB";
         var dbVersion = 1;
         var db;
@@ -318,7 +317,6 @@
                     activeCardIndex = record.activeIndex || 0;
 
                     record.deck.forEach(function(item) {
-                        // Generate dynamic object reference directly from saved Blob
                         var objectUrl = URL.createObjectURL(item.blob);
                         activeObjectUrls.push(objectUrl);
 
@@ -340,8 +338,4 @@
         }
 
         function saveLibraryProgress() {
-            if (!db || flashcardAssetsDeck.length === 0) return;
-
-            // Direct saving of native binary blobs avoids memory inflation 
-            var transaction = db.transaction(["library"], "readwrite");
-            var store = transaction.object
+            if (!db || flashcardAssets
