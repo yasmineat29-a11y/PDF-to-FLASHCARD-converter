@@ -8,5 +8,7 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   // Let network tasks execute naturally
-  e.respondWith(fetch(e.request).catch(() => new Response("Offline Mode Activated")));
+  e.respondWith(
+    fetch(e.request).catch(() => new Response("Offline Mode Activated"))
+  );
 });
