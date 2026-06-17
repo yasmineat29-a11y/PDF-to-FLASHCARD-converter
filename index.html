@@ -30,6 +30,47 @@
             text-align: center;
             border-bottom: 1px solid #362e28;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Reader Friendly CSS Book Logo */
+        .book-logo {
+            width: 34px;
+            height: 24px;
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            perspective: 100px;
+        }
+
+        .book-logo .page {
+            width: 15px;
+            height: 22px;
+            background: #ccb9a3;
+            border-radius: 2px 4px 4px 2px;
+            box-shadow: inset -2px 0 3px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .book-logo .page.left {
+            transform: rotateY(20deg);
+            border-radius: 4px 2px 2px 4px;
+            box-shadow: inset 2px 0 3px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .book-logo::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 24px;
+            background: #1a1613;
+            border-radius: 1px;
         }
 
         #app-workspace {
@@ -65,8 +106,8 @@
             width: 100%;
             height: 334px;
             display: flex;
-            flex-direction: column; /* Allows top padding/lines to flow naturally */
-            justify-content: flex-start; /* Prevents text elements clipping boundaries */
+            flex-direction: column; 
+            justify-content: flex-start; 
             align-items: center;
             overflow-y: auto;
             background: #f4ecd8; /* SEPIA Background */
@@ -195,6 +236,10 @@
 <body>
 
     <header>
+        <div class="book-logo">
+            <div class="page left"></div>
+            <div class="page right"></div>
+        </div>
         <h4 style="margin:0; font-weight: bold; color: #ccb9a3; letter-spacing: 0.03em;">Flashcardit Workspace</h4>
     </header>
 
@@ -508,58 +553,4 @@
                 toggleNextOrderedButtonVisibility();
                 
                 // Instant smooth scroll adjustments
-                document.querySelector('.card-text-wrapper').scrollTop = 0;
-                container.classList.remove('changing');
-            }, 180);
-        }
-
-        function navigateDeck(direction) {
-            if (flashcardAssetsDeck.length === 0) return;
-            activeCardIndex += direction;
-            if (activeCardIndex < 0) activeCardIndex = 0;
-            if (activeCardIndex >= flashcardAssetsDeck.length) activeCardIndex = flashcardAssetsDeck.length - 1;
-            
-            renderActiveCard();
-            saveLibraryProgress();
-        }
-
-        function shuffleDeck() {
-            if (flashcardAssetsDeck.length <= 1) return;
-            
-            var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
-            var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
-            
-            remainingItems.sort(function() { return Math.random() - 0.5; });
-            flashcardAssetsDeck = historyItems.concat(remainingItems);
-            
-            renderActiveCard();
-            saveLibraryProgress();
-        }
-
-        function goToNextInStructuralOrder() {
-            if (flashcardAssetsDeck.length === 0) return;
-
-            var currentCard = flashcardAssetsDeck[activeCardIndex];
-            var targetUid = currentCard.uid + 1;
-
-            // Find the sequential structural card from the source master list
-            var absoluteNextCard = originalAssetsOrder.find(item => item.uid === targetUid);
-            if (!absoluteNextCard) return;
-
-            // Strip out any duplicate instance of this upcoming target card in the remaining unviewed stack
-            var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
-            var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
-            var filteredRemaining = remainingItems.filter(item => item.uid !== targetUid);
-
-            // Splice the true consecutive card right in front of the active card position
-            flashcardAssetsDeck = historyItems.concat([absoluteNextCard], filteredRemaining);
-
-            // Move pointer forward precisely to our newly inserted chronological slide
-            activeCardIndex += 1;
-
-            renderActiveCard();
-            saveLibraryProgress();
-        }
-    </script>
-</body>
-</html>
+                document.querySelector('.card-text-wrapper').
