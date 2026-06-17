@@ -133,8 +133,8 @@
             margin: 0 4px;
         }
 
-        .btn-unshuffle {
-            background-color: #475569;
+        .btn-next-ordered {
+            background-color: #10b981;
             color: white;
             margin: 0 4px;
             display: none;
@@ -197,7 +197,7 @@
         <div class="controls-row" id="navigation-box" style="display: none;">
             <button class="btn-secondary" onclick="navigateDeck(-1)">◀ Prev</button>
             <button class="btn-shuffle" id="shuffle-btn" onclick="shuffleDeck()">🔀 Shuffle</button>
-            <button class="btn-unshuffle" id="unshuffle-btn" onclick="unshuffleRemainingDeck()">📋 Reset Order</button>
+            <button class="btn-next-ordered" id="next-ordered-btn" onclick="goToNextInStructuralOrder()">▶ Next in Order</button>
             <button class="btn-secondary" onclick="navigateDeck(1)">Next ▶</button>
         </div>
     </div>
@@ -270,16 +270,7 @@
 
                     originalAssetsOrder = [...record.deck].sort((a, b) => a.uid - b.uid);
 
-                    var looksShuffled = false;
-                    for (var i = 0; i < flashcardAssetsDeck.length - 1; i++) {
-                        if (flashcardAssetsDeck[i].uid > flashcardAssetsDeck[i+1].uid) {
-                            looksShuffled = true;
-                            break;
-                        }
-                    }
-                    if (looksShuffled) {
-                        document.getElementById('unshuffle-btn').style.display = 'block';
-                    }
+                    toggleNextOrderedButtonVisibility();
 
                     document.getElementById('status').style.display = 'none';
                     document.getElementById('card-view').style.display = 'flex';
@@ -291,6 +282,25 @@
                     renderActiveCard();
                 }
             };
+        }
+
+        function toggleNextOrderedButtonVisibility() {
+            var nextOrderedBtn = document.getElementById('next-ordered-btn');
+            if (flashcardAssetsDeck.length <= 1 || !flashcardAssetsDeck[activeCardIndex]) {
+                nextOrderedBtn.style.display = 'none';
+                return;
+            }
+
+            var currentCard = flashcardAssetsDeck[activeCardIndex];
+            // Check if the card right after our active index is NOT the chronological textbook successor
+            if (activeCardIndex < flashcardAssetsDeck.length - 1 && flashcardAssetsDeck[activeCardIndex + 1].uid === currentCard.uid + 1) {
+                nextOrderedBtn.style.display = 'none';
+            } else if (currentCard.uid >= originalAssetsOrder.length - 1) {
+                // If it's the very last text element of the entire PDF structure
+                nextOrderedBtn.style.display = 'none';
+            } else {
+                nextOrderedBtn.style.display = 'block';
+            }
         }
 
         function commitDeckToIndexedDB() {
@@ -355,7 +365,7 @@
             document.getElementById('card-view').style.display = 'none';
             document.getElementById('navigation-box').style.display = 'none';
             document.getElementById('save-library-btn').style.display = 'none';
-            document.getElementById('unshuffle-btn').style.display = 'none';
+            document.getElementById('next-ordered-btn').style.display = 'none';
             
             flashcardAssetsDeck = [];
             originalAssetsOrder = [];
@@ -456,6 +466,8 @@
 
             document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
             document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
+            
+            toggleNextOrderedButtonVisibility();
         }
 
         function navigateDeck(direction) {
@@ -471,43 +483,36 @@
         function shuffleDeck() {
             if (flashcardAssetsDeck.length <= 1) return;
             
-            // Keep everything up to the current card right where it is
             var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
-            
-            // Isolate all cards that are ahead of us
             var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
             
-            // Randomize ONLY the forward elements
             remainingItems.sort(function() { return Math.random() - 0.5; });
-            
-            // Re-merge. Your workspace index position is completely untouched.
             flashcardAssetsDeck = historyItems.concat(remainingItems);
-            
-            document.getElementById('unshuffle-btn').style.display = 'block';
             
             renderActiveCard();
             saveLibraryProgress();
         }
 
-        function unshuffleRemainingDeck() {
-            if (flashcardAssetsDeck.length <= 1) return;
+        function goToNextInStructuralOrder() {
+            if (flashcardAssetsDeck.length === 0) return;
 
-            // Get our current card object data
             var currentCard = flashcardAssetsDeck[activeCardIndex];
+            var targetUid = currentCard.uid + 1;
 
-            // Reconstruct the past sequence out of elements in original order up to your current location
-            var structuralHistory = originalAssetsOrder.filter(item => item.uid <= currentCard.uid);
-            
-            // Grab every card in original textbook order that follows your current card's exact position
-            var structuralRemaining = originalAssetsOrder.filter(item => item.uid > currentCard.uid);
+            // Find the sequential structural card from the source master list
+            var absoluteNextCard = originalAssetsOrder.find(item => item.uid === targetUid);
+            if (!absoluteNextCard) return;
 
-            // Re-bind the true clean master timeline seamlessly
-            flashcardAssetsDeck = structuralHistory.concat(structuralRemaining);
-            
-            // Update your active position pointer so you stay locked on the exact same card contents
-            activeCardIndex = structuralHistory.length - 1;
-            
-            document.getElementById('unshuffle-btn').style.display = 'none';
+            // Strip out any duplicate instance of this upcoming target card in the remaining unviewed stack
+            var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
+            var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
+            var filteredRemaining = remainingItems.filter(item => item.uid !== targetUid);
+
+            // Splice the true consecutive card right in front of the active card position
+            flashcardAssetsDeck = historyItems.concat([absoluteNextCard], filteredRemaining);
+
+            // Move pointer forward precisely to our newly inserted chronological slide
+            activeCardIndex += 1;
 
             renderActiveCard();
             saveLibraryProgress();
