@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flashcardit - Text Slices</title>
     
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZsYXNoY2FyZGl0IFRleHQgV29ya3NwYWNlIiwKICAic2hvcnRfbmFtZSI6ICJGbGFzaGNhcmRpdCIsCiAgInN0YXJ0X3VybCI6ICIuL2luZGV4Lmh0bWwiLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxYTE2MTMiLAogICJ0aGVtZV9Y29sb3IiOiAiIzI0MWUxYSIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vY2RuLWljb25zLXBuZy5mbGF0aWNvbi5jb20vNTEyLzMwNjcvMzA2NzM5MC5wbmciLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXJrYWJsZSIKICAgIH0KICBdCn0=">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZsYXNoY2FyZGl0IiwKICAic2hvcnRfbmFtZSI6ICJGbGFzaGNhcmRpdCIsCiAgInN0YXJ0X3VybCI6ICIuL2luZGV4Lmh0bWwiLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxYTE2MTMiLAogICJ0aGVtZV9Y29sb3IiOiAiIzI0MWUxYSIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vY2RuLWljb25zLXBuZy5mbGF0aWNvbi5jb20vNTEyLzMwNjcvMzA2NzM5MC5wbmciLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXJrYWJsZSIKICAgIH0KICBdCn0=">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flashcardit">
@@ -279,34 +279,31 @@
     </div>
 
     <script>
-        // --- WEB INSTALLATION SERVICE WORKER RUNTIME ---
+        // --- EMBEDDED CUSTOM NETWORK-FIRST SERVICE WORKER RUNTIME ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 var swCode = `
-                    const CACHE_NAME = 'flashcardit-cache-v3';
-                    self.addEventListener('install', event => {
-                        event.waitUntil(caches.open(CACHE_NAME).then(cache => {
-                            return cache.addAll([
-                                './',
-                                './index.html',
-                                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js'
-                            ]).catch(err => console.log("Caching optimized during offline window setup."));
-                        }));
+                    self.addEventListener('install', (e) => {
+                      self.skipWaiting();
                     });
-                    self.addEventListener('fetch', event => {
-                        event.respondWith(caches.match(event.request).then(res => res || fetch(event.request)));
+
+                    self.addEventListener('activate', (e) => {
+                      return self.clients.claim();
+                    });
+
+                    self.addEventListener('fetch', (e) => {
+                      e.respondWith(fetch(e.request).catch(() => new Response("Offline Mode Activated")));
                     });
                 `;
                 var blob = new Blob([swCode], { type: 'text/javascript' });
                 navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(function(err) {
-                    console.log('SW setup deferred.');
+                    console.log('SW registration deferred.');
                 });
             });
         }
 
-        // --- FIXED CORS SECURE INLINE WORKER DEPLOYMENT ---
+        // --- SAFE DATA BLOB TO BYPASS CORS DOMAIN BLOCKS FOR PARSING WORKER ---
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        // Configures worker inside a local safe data boundary to bypass strict browser domain checks
         var inlineWorkerBlob = new Blob([
             "importScripts('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js');"
         ], { type: 'text/javascript' });
@@ -571,4 +568,14 @@
 
             var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
             var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
-            var filteredRemaining = remainingItems.filter(item
+            var filteredRemaining = remainingItems.filter(item => item.uid !== targetUid);
+
+            flashcardAssetsDeck = historyItems.concat([absoluteNextCard], filteredRemaining);
+            activeCardIndex += 1;
+
+            renderActiveCard();
+            saveLibraryProgress();
+        }
+    </script>
+</body>
+</html>
