@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flashcardit - Text Slices</title>
     
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZsYXNoY2FyZGl0IiwKICAic2hvcnRfbmFtZSI6ICJGbGFzaGNhcmRpdCIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiI2Y4ZmFmYyIsCiAgInRoZW1lX2NvbG9yIjogIiMyNTYzZWIiCn0=">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZsYXNoY2FyZGl0IFRleHQgV29ya3NwYWNlIiwKICAic2hvcnRfbmFtZSI6ICJGbGFzaGNhcmRpdCIsCiAgInN0YXJ0X3VybCI6ICIuL2luZGV4Lmh0bWwiLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxYTE2MTMiLAogICJ0aGVtZV9Y29sb3IiOiAiIzI0MWUxYSIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vY2RuLWljb25zLXBuZy5mbGF0aWNvbi5jb20vNTEyLzMwNjcvMzA2NzM5MC5wbmciLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNrYWJsZSIKICAgIH0KICBdCn0=">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flashcardit">
@@ -212,7 +212,7 @@
         .btn-next-ordered {
             background-color: #6e553a;
             color: #e4dcd3;
-            display: none; /* Controlled by display toggle in setup scripts */
+            display: none; 
         }
 
         .btn-save-lib {
@@ -283,14 +283,16 @@
     </div>
 
     <script>
-        // --- OFFLINE SERVICE WORKER SERVICE ---
+        // --- FIXED OFFLINE SERVICE WORKER SERVICE ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 var swCode = `
-                    const CACHE_NAME = 'flashcardit-cache-v1';
+                    const CACHE_NAME = 'flashcardit-cache-v2';
                     const urlsToCache = [
-                        location.pathname,
-                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js'
+                        './',
+                        './index.html',
+                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js',
+                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js'
                     ];
                     self.addEventListener('install', event => {
                         event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
@@ -306,8 +308,9 @@
             });
         }
 
+        // --- FIXED WORKING PATH FOR INTERPRETATION WORKER ---
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js';
 
         var flashcardAssetsDeck = [];
         var originalAssetsOrder = []; 
@@ -366,7 +369,6 @@
 
         function toggleNextOrderedButtonVisibility() {
             var nextOrderedBtn = document.getElementById('next-ordered-btn');
-            // Permanently visible whenever active dataset exists
             if (flashcardAssetsDeck.length <= 1) {
                 nextOrderedBtn.style.display = 'none';
             } else {
@@ -448,10 +450,7 @@
                 var typedarray = new Uint8Array(this.result);
                 
                 pdfjsLib.getDocument({
-                    data: typedarray,
-                    disableWorker: true,
-                    disableAutoFetch: true,
-                    disableStream: true
+                    data: typedarray
                 }).promise.then(function(pdf) {
                     var totalPages = pdf.numPages;
                     var structuralUidCounter = 0;
@@ -528,8 +527,6 @@
 
         function renderActiveCard() {
             var container = document.getElementById('text-container');
-            
-            // Trigger seamless reading-friendly fade transition
             container.classList.add('changing');
             
             setTimeout(function() {
@@ -541,8 +538,6 @@
                 }
 
                 var activeCard = flashcardAssetsDeck[activeCardIndex];
-                
-                // Formats two line breaks precisely ahead of text to protect upper display cutoffs
                 container.innerHTML = "<br><br>" + activeCard.text;
 
                 document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
@@ -550,7 +545,6 @@
                 
                 toggleNextOrderedButtonVisibility();
                 
-                // Instant smooth scroll adjustments
                 document.querySelector('.card-text-wrapper').scrollTop = 0;
                 container.classList.remove('changing');
             }, 180);
@@ -585,19 +579,14 @@
             var currentCard = flashcardAssetsDeck[activeCardIndex];
             var targetUid = currentCard.uid + 1;
 
-            // Find the sequential structural card from the source master list
             var absoluteNextCard = originalAssetsOrder.find(item => item.uid === targetUid);
             if (!absoluteNextCard) return;
 
-            // Strip out any duplicate instance of this upcoming target card in the remaining unviewed stack
             var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
             var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
             var filteredRemaining = remainingItems.filter(item => item.uid !== targetUid);
 
-            // Splice the true consecutive card right in front of the active card position
             flashcardAssetsDeck = historyItems.concat([absoluteNextCard], filteredRemaining);
-
-            // Move pointer forward precisely to our newly inserted chronological slide
             activeCardIndex += 1;
 
             renderActiveCard();
