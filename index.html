@@ -101,6 +101,7 @@
             display: flex;
             flex-direction: column;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            touch-action: pan-y; /* Allows vertical scrolling inside cards while intercepting horizontal gestures */
         }
 
         .card-text-wrapper {
@@ -308,7 +309,6 @@
 
         // --- 2. FIXED STABLE PDF EXTRACTION WORKER CONTROLLER ---
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        // Points natively to a reliable matching CDN background worker endpoint file
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js';
 
         var flashcardAssetsDeck = [];
@@ -404,7 +404,6 @@
             };
         }
 
-        // Fixed non-blocking engine: Loops pages via micro-task wrappers without breaking UI render paints
         function handlePDFUpload(event) {
             var file = event.target.files[0];
             if (!file) return;
@@ -430,7 +429,6 @@
             fileReader.onload = function() {
                 var typedarray = new Uint8Array(this.result);
                 
-                // Removed defunct worker arguments to clear error breaks
                 pdfjsLib.getDocument({ data: typedarray }).promise.then(function(pdf) {
                     var totalPages = pdf.numPages;
                     var structuralUidCounter = 0;
@@ -480,7 +478,6 @@
                                         serializedDeckForDb.push(itemObject);
                                     }
                                 }
-                                // Yield processing context frames back to screen to keep UI ticking smoothly
                                 setTimeout(function() { processPage(pageNum + 1); }, 0);
                             });
                         }).catch(function() {
@@ -541,6 +538,35 @@
             
             renderActiveCard();
             saveLibraryProgress();
+        }
+
+        // --- 3. HARDWARE GESTURE RECOGNITION (SWIPE LEFT & RIGHT) ---
+        var touchStartX = 0;
+        var touchEndX = 0;
+        var cardViewElement = document.getElementById('card-view');
+
+        cardViewElement.addEventListener('touchstart', function(event) {
+            touchStartX = event.changedTouches[0].screenX;
+        }, { passive: true });
+
+        cardViewElement.addEventListener('touchend', function(event) {
+            touchEndX = event.changedTouches[0].screenX;
+            handleSwipeGesture();
+        }, { passive: true });
+
+        function handleSwipeGesture() {
+            var swipeThresholdDistance = 30; // Min pixels traveled to trigger card change
+            var totalTraveledDistance = touchStartX - touchEndX;
+
+            if (Math.abs(totalTraveledDistance) > swipeThresholdDistance) {
+                if (totalTraveledDistance > 0) {
+                    // Swiped Left -> Load Next Flashcard
+                    navigateDeck(1);
+                } else {
+                    // Swiped Right -> Load Previous Flashcard
+                    navigateDeck(-1);
+                }
+            }
         }
 
         function goToNextInStructuralOrder() {
