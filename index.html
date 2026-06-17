@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flashcardit - Text Slices</title>
     
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZsYXNoY2FyZGl0IFRleHQgV29ya3NwYWNlIiwKICAic2hvcnRfbmFtZSI6ICJGbGFzaGNhcmRpdCIsCiAgInN0YXJ0X3VybCI6ICIuL2luZGV4Lmh0bWwiLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxYTE2MTMiLAogICJ0aGVtZV9Y29sb3IiOiAiIzI0MWUxYSIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vY2RuLWljb25zLXBuZy5mbGF0aWNvbi5jb20vNTEyLzMwNjcvMzA2NzM5MC5wbmciLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNrYWJsZSIKICAgIH0KICBdCn0=">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZsYXNoY2FyZGl0IFRleHQgV29ya3NwYWNlIiwKICAic2hvcnRfbmFtZSI6ICJGbGFzaGNhcmRpdCIsCiAgInN0YXJ0X3VybCI6ICIuL2luZGV4Lmh0bWwiLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxYTE2MTMiLAogICJ0aGVtZV9Y29sb3IiOiAiIzI0MWUxYSIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vY2RuLWljb25zLXBuZy5mbGF0aWNvbi5jb20vNTEyLzMwNjcvMzA2NzM5MC5wbmciLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXJrYWJsZSIKICAgIH0KICBdCn0=">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flashcardit">
@@ -16,7 +16,7 @@
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #1a1613; /* Dark Mode Workspace Surroundings */
+            background-color: #1a1613; /* Dark Mode Surroundings */
             color: #e4dcd3;
             display: flex;
             flex-direction: column;
@@ -90,7 +90,7 @@
         }
 
         .flashcard-view {
-            background: #f4ecd8; /* SEPIA Background for Text Card */
+            background: #f4ecd8; /* SEPIA Card Surface */
             border-radius: 16px;
             width: 100%;
             height: 380px; 
@@ -110,20 +110,20 @@
             justify-content: flex-start; 
             align-items: center;
             overflow-y: auto;
-            background: #f4ecd8; /* SEPIA Background */
+            background: #f4ecd8;
             box-sizing: border-box;
             padding: 28px;
-            padding-top: 48px; /* Safe padding spacing before text begins */
+            padding-top: 48px; /* Strict anti-clipping text padding spacer */
             text-align: center;
             -webkit-overflow-scrolling: touch;
             scroll-behavior: smooth;
         }
 
         .card-text-content {
-            font-family: Georgia, Cambria, "Times New Roman", Times, serif; /* Highly Readable Book Typography */
+            font-family: Georgia, Cambria, "Times New Roman", Times, serif; 
             font-size: 21px;
             line-height: 1.65;
-            color: #110f0e; /* BLACK text for crisp contrast on Sepia */
+            color: #110f0e; /* High contrast black text on sepia */
             word-wrap: break-word;
             max-width: 100%;
             transition: opacity 0.18s ease, transform 0.18s ease;
@@ -131,7 +131,6 @@
             opacity: 1;
         }
 
-        /* Reading friendly transition animation */
         .card-text-content.changing {
             opacity: 0;
             transform: translateY(8px);
@@ -139,7 +138,7 @@
 
         .card-metadata-footer {
             height: 46px;
-            background: #e9dec4; /* Darker sepia baseline shade */
+            background: #e9dec4;
             border-top: 1px solid #dfd5be;
             display: flex;
             align-items: center;
@@ -147,7 +146,7 @@
             padding: 0 18px;
             font-size: 13px;
             font-weight: bold;
-            color: #5c5243; /* Readable dark-sepia text metadata */
+            color: #5c5243;
             letter-spacing: 0.04em;
         }
 
@@ -156,7 +155,7 @@
             width: 100%;
             padding: 20px 0;
             gap: 8px;
-            flex-wrap: wrap; /* Graceful scaling on narrow screens */
+            flex-wrap: wrap;
         }
 
         button, label.file-upload-label {
@@ -180,7 +179,7 @@
         }
 
         label.file-upload-label {
-            background-color: #8f7251; /* Dark Warm Sepia Tone Accent */
+            background-color: #8f7251; /* Warm dark sepia action background */
             color: #f4ecd8;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             flex: none;
@@ -192,12 +191,9 @@
             color: #e4dcd3;
             border: 1px solid #3d342d;
         }
-        .btn-secondary:hover {
-            background-color: #362e28;
-        }
 
         .btn-danger {
-            background-color: #692c2c; /* Muted deep dark red */
+            background-color: #692c2c;
             color: #e4dcd3;
             margin-top: 12px;
             flex: none;
@@ -283,34 +279,38 @@
     </div>
 
     <script>
-        // --- FIXED OFFLINE SERVICE WORKER SERVICE ---
+        // --- WEB INSTALLATION SERVICE WORKER RUNTIME ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 var swCode = `
-                    const CACHE_NAME = 'flashcardit-cache-v2';
-                    const urlsToCache = [
-                        './',
-                        './index.html',
-                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js',
-                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js'
-                    ];
+                    const CACHE_NAME = 'flashcardit-cache-v3';
                     self.addEventListener('install', event => {
-                        event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
+                        event.waitUntil(caches.open(CACHE_NAME).then(cache => {
+                            return cache.addAll([
+                                './',
+                                './index.html',
+                                'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js'
+                            ]).catch(err => console.log("Caching optimized during offline window setup."));
+                        }));
                     });
                     self.addEventListener('fetch', event => {
-                        event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
+                        event.respondWith(caches.match(event.request).then(res => res || fetch(event.request)));
                     });
                 `;
                 var blob = new Blob([swCode], { type: 'text/javascript' });
                 navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(function(err) {
-                    console.log('SW registration failed:', err);
+                    console.log('SW setup deferred.');
                 });
             });
         }
 
-        // --- FIXED WORKING PATH FOR INTERPRETATION WORKER ---
+        // --- FIXED CORS SECURE INLINE WORKER DEPLOYMENT ---
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js';
+        // Configures worker inside a local safe data boundary to bypass strict browser domain checks
+        var inlineWorkerBlob = new Blob([
+            "importScripts('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js');"
+        ], { type: 'text/javascript' });
+        pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(inlineWorkerBlob);
 
         var flashcardAssetsDeck = [];
         var originalAssetsOrder = []; 
@@ -333,7 +333,7 @@
             checkSavedLibraryProgress();
         };
         request.onerror = function() {
-            console.error("Database initialization failed.");
+            console.error("Database connection dropped.");
         };
 
         document.getElementById('file-input').addEventListener('change', handlePDFUpload);
@@ -350,7 +350,6 @@
                     flashcardAssetsDeck = record.deck;
                     serializedDeckForDb = record.deck;
                     activeCardIndex = record.activeIndex || 0;
-
                     originalAssetsOrder = [...record.deck].sort((a, b) => a.uid - b.uid);
 
                     toggleNextOrderedButtonVisibility();
@@ -378,7 +377,6 @@
 
         function commitDeckToIndexedDB() {
             if (!db || serializedDeckForDb.length === 0) return;
-            
             var saveBtn = document.getElementById('save-library-btn');
             saveBtn.innerText = "⏳ Saving...";
 
@@ -399,7 +397,6 @@
 
         function saveLibraryProgress() {
             if (!db || flashcardAssetsDeck.length === 0) return;
-            
             var transaction = db.transaction(["library"], "readwrite");
             var store = transaction.objectStore("library");
             
@@ -449,9 +446,7 @@
             fileReader.onload = function() {
                 var typedarray = new Uint8Array(this.result);
                 
-                pdfjsLib.getDocument({
-                    data: typedarray
-                }).promise.then(function(pdf) {
+                pdfjsLib.getDocument({ data: typedarray }).promise.then(function(pdf) {
                     var totalPages = pdf.numPages;
                     var structuralUidCounter = 0;
                     
@@ -459,7 +454,7 @@
                         if (pageNum > totalPages) {
                             if (flashcardAssetsDeck.length === 0) {
                                 uploadLabel.innerText = "📁 Select PDF File";
-                                statusLabel.innerHTML = "<strong>No usable text layers discovered.</strong>";
+                                statusLabel.innerHTML = "<strong>No readable characters found in document layer.</strong>";
                                 return;
                             }
 
@@ -482,7 +477,6 @@
                         pdf.getPage(pageNum).then(function(page) {
                             return page.getTextContent().then(function(textContent) {
                                 var pageRawText = "";
-                                
                                 for (var i = 0; i < textContent.items.length; i++) {
                                     pageRawText += textContent.items[i].str + " ";
                                 }
@@ -490,7 +484,6 @@
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
-                                    
                                     if (sanitizedSentence.length > 6) {
                                         var itemObject = {
                                             uid: structuralUidCounter++,
@@ -502,14 +495,12 @@
                                         serializedDeckForDb.push(itemObject);
                                     }
                                 }
-
                                 setTimeout(function() { processPage(pageNum + 1); }, 1);
                             });
                         }).catch(function(error) {
                             setTimeout(function() { processPage(pageNum + 1); }, 1);
                         });
                     }
-
                     processPage(1);
 
                 }).catch(function(error) {
@@ -519,9 +510,8 @@
             
             function showErrorState() {
                 uploadLabel.innerText = "📁 Select PDF File";
-                statusLabel.innerHTML = "<strong>Error reading text characters from this structure.</strong>";
+                statusLabel.innerHTML = "<strong>File layout processing exception encountered.</strong>";
             }
-
             fileReader.readAsArrayBuffer(file);
         }
 
@@ -531,7 +521,6 @@
             
             setTimeout(function() {
                 container.innerHTML = '';
-
                 if(!flashcardAssetsDeck[activeCardIndex]) {
                     container.classList.remove('changing');
                     return;
@@ -544,7 +533,6 @@
                 document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
                 
                 toggleNextOrderedButtonVisibility();
-                
                 document.querySelector('.card-text-wrapper').scrollTop = 0;
                 container.classList.remove('changing');
             }, 180);
@@ -562,7 +550,6 @@
 
         function shuffleDeck() {
             if (flashcardAssetsDeck.length <= 1) return;
-            
             var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
             var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
             
@@ -584,14 +571,4 @@
 
             var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
             var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
-            var filteredRemaining = remainingItems.filter(item => item.uid !== targetUid);
-
-            flashcardAssetsDeck = historyItems.concat([absoluteNextCard], filteredRemaining);
-            activeCardIndex += 1;
-
-            renderActiveCard();
-            saveLibraryProgress();
-        }
-    </script>
-</body>
-</html>
+            var filteredRemaining = remainingItems.filter(item
