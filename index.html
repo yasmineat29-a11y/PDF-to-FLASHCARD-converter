@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flashcardit - Text Slices</title>
     
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZsYXNoY2FyZGl0IiwKICAic2hvcnRfbmFtZSI6ICJGbGFzaGNhcmRpdCIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjZjhmYWZjIiwKICAidGhlbWVfY29sb3IiOiAiIzI1NjNlYiIKfQ==">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flashcardit">
@@ -133,7 +133,7 @@
             margin: 0 4px;
         }
 
-        .btn-reset-order {
+        .btn-unshuffle {
             background-color: #475569;
             color: white;
             margin: 0 4px;
@@ -197,19 +197,42 @@
         <div class="controls-row" id="navigation-box" style="display: none;">
             <button class="btn-secondary" onclick="navigateDeck(-1)">◀ Prev</button>
             <button class="btn-shuffle" id="shuffle-btn" onclick="shuffleDeck()">🔀 Shuffle</button>
-            <button class="btn-reset-order" id="reset-order-btn" onclick="resetToOriginalOrder()">↩️ Original Order</button>
+            <button class="btn-unshuffle" id="unshuffle-btn" onclick="unshuffleRemainingDeck()">📋 Reset Order</button>
             <button class="btn-secondary" onclick="navigateDeck(1)">Next ▶</button>
         </div>
     </div>
 
     <script>
+        // --- OFFLINE SERVICE WORKER SERVICE ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                var swCode = `
+                    const CACHE_NAME = 'flashcardit-cache-v1';
+                    const urlsToCache = [
+                        location.pathname,
+                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js'
+                    ];
+                    self.addEventListener('install', event => {
+                        event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
+                    });
+                    self.addEventListener('fetch', event => {
+                        event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
+                    });
+                `;
+                var blob = new Blob([swCode], { type: 'text/javascript' });
+                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(function(err) {
+                    console.log('SW registration failed:', err);
+                });
+            });
+        }
+
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
         var flashcardAssetsDeck = [];
+        var originalAssetsOrder = []; // Safeguard copy for tracking clean original order
         var activeCardIndex = 0;
         var serializedDeckForDb = []; 
-        var isShuffled = false;
 
         var dbName = "FlashcarditTextDB";
         var dbVersion = 1;
@@ -242,13 +265,26 @@
                 var record = getReq.result;
                 if (record && record.deck && record.deck.length > 0) {
                     flashcardAssetsDeck = record.deck;
-                    serializedDeckForDb = JSON.parse(JSON.stringify(record.deck)); 
-                    
-                    // Sort the tracking reference safely by Page, then order occurrence to ensure original sequence availability
-                    serializedDeckForDb.sort(function(a, b) { return a.page - b.page; });
-                    
+                    serializedDeckForDb = record.deck;
                     activeCardIndex = record.activeIndex || 0;
-                    isShuffled = record.isShuffled || false;
+
+                    // Reconstruct original order matching internal values sorted sequentially
+                    originalAssetsOrder = [...record.deck].sort((a, b) => {
+                        if (a.page !== b.page) return a.page - b.page;
+                        return a.text.localeCompare(b.text);
+                    });
+
+                    // Evaluate if layout was left in randomized order to display restoration option
+                    var looksShuffled = false;
+                    for (var i = 0; i < flashcardAssetsDeck.length - 1; i++) {
+                        if (flashcardAssetsDeck[i].page > flashcardAssetsDeck[i+1].page) {
+                            looksShuffled = true;
+                            break;
+                        }
+                    }
+                    if (looksShuffled) {
+                        document.getElementById('unshuffle-btn').style.display = 'block';
+                    }
 
                     document.getElementById('status').style.display = 'none';
                     document.getElementById('card-view').style.display = 'flex';
@@ -257,7 +293,6 @@
                     document.getElementById('save-library-btn').style.display = 'none';
                     document.getElementById('upload-label-text').innerText = "📁 Change PDF";
                     
-                    toggleShuffleButtons();
                     renderActiveCard();
                 }
             };
@@ -275,8 +310,7 @@
             var putReq = store.put({
                 id: "active_deck",
                 activeIndex: activeCardIndex,
-                isShuffled: isShuffled,
-                deck: flashcardAssetsDeck
+                deck: serializedDeckForDb
             });
 
             putReq.onsuccess = function() {
@@ -296,7 +330,6 @@
                 var existingRecord = getReq.result;
                 if (existingRecord) {
                     existingRecord.activeIndex = activeCardIndex;
-                    existingRecord.isShuffled = isShuffled;
                     existingRecord.deck = flashcardAssetsDeck;
                     store.put(existingRecord);
                 }
@@ -327,12 +360,12 @@
             document.getElementById('card-view').style.display = 'none';
             document.getElementById('navigation-box').style.display = 'none';
             document.getElementById('save-library-btn').style.display = 'none';
+            document.getElementById('unshuffle-btn').style.display = 'none';
             
             flashcardAssetsDeck = [];
+            originalAssetsOrder = [];
             serializedDeckForDb = [];
             activeCardIndex = 0;
-            isShuffled = false;
-            toggleShuffleButtons();
 
             var fileReader = new FileReader();
             fileReader.onload = function() {
@@ -388,8 +421,8 @@
                                             page: pageNum
                                         };
                                         flashcardAssetsDeck.push(itemObject);
-                                        // Keeping deep copies to safeguard default order parsing
-                                        serializedDeckForDb.push(JSON.parse(JSON.stringify(itemObject)));
+                                        originalAssetsOrder.push({...itemObject});
+                                        serializedDeckForDb.push(itemObject);
                                     }
                                 }
 
@@ -438,80 +471,37 @@
             saveLibraryProgress();
         }
 
-        function toggleShuffleButtons() {
-            var shuffleBtn = document.getElementById('shuffle-btn');
-            var resetBtn = document.getElementById('reset-order-btn');
-            if (isShuffled) {
-                shuffleBtn.style.display = 'none';
-                resetBtn.style.display = 'block';
-            } else {
-                shuffleBtn.style.display = 'block';
-                resetBtn.style.display = 'none';
-            }
-        }
-
         function shuffleDeck() {
             if (flashcardAssetsDeck.length <= 1) return;
             
             flashcardAssetsDeck.sort(function() { return Math.random() - 0.5; });
             activeCardIndex = 0;
-            isShuffled = true;
             
-            toggleShuffleButtons();
+            document.getElementById('unshuffle-btn').style.display = 'block';
+            
             renderActiveCard();
             saveLibraryProgress();
         }
 
-        function resetToOriginalOrder() {
-            if (serializedDeckForDb.length <= 1) return;
+        function unshuffleRemainingDeck() {
+            if (flashcardAssetsDeck.length <= 1) return;
+
+            // Preserve items up to and including the current active card index
+            var itemsUpToCurrent = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
+            var currentCard = flashcardAssetsDeck[activeCardIndex];
+
+            // Filter out already viewed unique contents to arrange what's left
+            var historyTexts = itemsUpToCurrent.map(item => item.text);
+            var remainingItemsInOrder = originalAssetsOrder.filter(item => !historyTexts.includes(item.text));
+
+            // Reassemble the structural timeline cleanly
+            flashcardAssetsDeck = itemsUpToCurrent.concat(remainingItemsInOrder);
             
-            // Restore structural array from saved linear baseline
-            flashcardAssetsDeck = JSON.parse(JSON.stringify(serializedDeckForDb));
-            activeCardIndex = 0;
-            isShuffled = false;
-            
-            toggleShuffleButtons();
+            // Hide the button since it is now returned back to its original order path
+            document.getElementById('unshuffle-btn').style.display = 'none';
+
             renderActiveCard();
             saveLibraryProgress();
-        }
-
-        // --- Offline Service Worker Registration ---
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                var swCode = `
-                    var CACHE_NAME = 'flashcardit-v1';
-                    var urlsToCache = [
-                        './',
-                        'index.html',
-                        'manifest.json',
-                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js'
-                    ];
-
-                    self.addEventListener('install', function(event) {
-                        event.waitUntil(
-                            caches.open(CACHE_NAME).then(function(cache) {
-                                return cache.addAll(urlsToCache);
-                            })
-                        );
-                    });
-
-                    self.addEventListener('fetch', function(event) {
-                        event.respondWith(
-                            caches.match(event.request).then(function(response) {
-                                if (response) return response;
-                                return fetch(event.request);
-                            })
-                        );
-                    });
-                `;
-                
-                var blob = new Blob([swCode], { type: 'text/javascript' });
-                var swUrl = URL.createObjectURL(blob);
-                
-                navigator.serviceWorker.register(swUrl, { scope: './' })
-                    .then(function(reg) { console.log('ServiceWorker tracking active offline.'); })
-                    .catch(function(err) { console.log('Worker setup skipped:', err); });
-            });
         }
     </script>
 </body>
