@@ -230,7 +230,7 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
         var flashcardAssetsDeck = [];
-        var originalAssetsOrder = []; // Safeguard copy for tracking clean original order
+        var originalAssetsOrder = []; 
         var activeCardIndex = 0;
         var serializedDeckForDb = []; 
 
@@ -268,16 +268,13 @@
                     serializedDeckForDb = record.deck;
                     activeCardIndex = record.activeIndex || 0;
 
-                    // Build baseline structure sequence copy
-                    originalAssetsOrder = [...record.deck].sort((a, b) => {
-                        if (a.page !== b.page) return a.page - b.page;
-                        return 0; // Maintain original internal processing sort order per page
-                    });
+                    // Ensure every item has a unique sequence ID mapping back to source order
+                    originalAssetsOrder = [...record.deck].sort((a, b) => a.uid - b.uid);
 
-                    // Evaluate if layout is left randomized to render restoration button option
+                    // Check if the current order sequence is shuffled to display tracking UI button
                     var looksShuffled = false;
                     for (var i = 0; i < flashcardAssetsDeck.length - 1; i++) {
-                        if (flashcardAssetsDeck[i].page > flashcardAssetsDeck[i+1].page) {
+                        if (flashcardAssetsDeck[i].uid > flashcardAssetsDeck[i+1].uid) {
                             looksShuffled = true;
                             break;
                         }
@@ -378,6 +375,7 @@
                     disableStream: true
                 }).promise.then(function(pdf) {
                     var totalPages = pdf.numPages;
+                    var structuralUidCounter = 0;
                     
                     function processPage(pageNum) {
                         if (pageNum > totalPages) {
@@ -417,6 +415,7 @@
                                     
                                     if (sanitizedSentence.length > 6) {
                                         var itemObject = {
+                                            uid: structuralUidCounter++,
                                             text: sanitizedSentence + ".",
                                             page: pageNum
                                         };
@@ -474,16 +473,16 @@
         function shuffleDeck() {
             if (flashcardAssetsDeck.length <= 1) return;
             
-            // Keep the items already viewed, up to and including the current card
+            // Slice items up to and including the current active card position
             var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
             
-            // Isolate only the remaining deck elements ahead of us
+            // Isolate only cards coming strictly AFTER our current active frame location
             var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
             
-            // Shuffle only the forward elements
+            // Randomize only the unviewed upcoming portion of our array
             remainingItems.sort(function() { return Math.random() - 0.5; });
             
-            // Splice back together. Your index stays untouched on the exact same card.
+            // Stitch items together. The current index position remains completely undisturbed.
             flashcardAssetsDeck = historyItems.concat(remainingItems);
             
             document.getElementById('unshuffle-btn').style.display = 'block';
@@ -495,16 +494,16 @@
         function unshuffleRemainingDeck() {
             if (flashcardAssetsDeck.length <= 1) return;
 
-            // Preserve all history items including the current active card position
+            // Retain history up to and including the current visible active index item
             var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
 
-            // Establish a map of item texts that have already been handled/viewed
-            var historicalTexts = historyItems.map(item => item.text);
+            // Establish a map of historical unique IDs already processed inside the current deck session
+            var historicalUids = historyItems.map(item => item.uid);
 
-            // Filter the master original source deck to discover unviewed assets in original book order
-            var remainingItemsInOrder = originalAssetsOrder.filter(item => !historicalTexts.includes(item.text));
+            // Filter master structural sequence copy via ID checklist verification
+            var remainingItemsInOrder = originalAssetsOrder.filter(item => !historicalUids.includes(item.uid));
 
-            // Assemble everything seamlessly. You stay perfectly on your current active card index.
+            // Merge back together. The view position holds on your current active index.
             flashcardAssetsDeck = historyItems.concat(remainingItemsInOrder);
             
             document.getElementById('unshuffle-btn').style.display = 'none';
