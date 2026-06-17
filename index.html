@@ -94,6 +94,7 @@
             display: flex;
             width: 100%;
             padding: 16px 0;
+            gap: 4px;
         }
 
         button, label.file-upload-label {
@@ -118,7 +119,7 @@
             background-color: #ffffff;
             color: #0f172a;
             border: 1px solid #cbd5e1;
-            margin: 0 4px;
+            flex: 1;
         }
 
         .btn-danger {
@@ -127,10 +128,42 @@
             margin-top: 8px;
         }
 
+        .shuffle-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1.2;
+        }
+
         .btn-shuffle {
             background-color: #64748b;
             color: white;
-            margin: 0 4px;
+            height: 100%;
+        }
+
+        .btn-shuffle:disabled {
+            background-color: #cbd5e1;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .freeze-toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            font-size: 11px;
+            color: #64748b;
+            font-weight: bold;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .freeze-toggle-container input {
+            cursor: pointer;
+            margin: 0;
         }
 
         .btn-save-lib {
@@ -189,18 +222,65 @@
 
         <div class="controls-row" id="navigation-box" style="display: none;">
             <button class="btn-secondary" onclick="navigateDeck(-1)">◀ Prev</button>
-            <button class="btn-shuffle" onclick="shuffleDeck()">🔀 Shuffle</button>
+            
+            <div class="shuffle-wrapper">
+                <button class="btn-shuffle" id="shuffle-btn" onclick="shuffleDeck()">🔀 Shuffle</button>
+                <div class="freeze-toggle-container">
+                    <input type="checkbox" id="freeze-shuffle-toggle" onchange="toggleFreezeShuffling()">
+                    <label for="freeze-shuffle-toggle" style="cursor:pointer;">Freeze Order</label>
+                </div>
+            </div>
+            
             <button class="btn-secondary" onclick="navigateDeck(1)">Next ▶</button>
         </div>
     </div>
 
     <script>
+        // --- OFFLINE CAPABILITIES (Service Worker Inlining) ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                var blob = new Blob([`
+                    var CACHE_NAME = 'flashcardit-v1';
+                    var urlsToCache = [
+                        '/',
+                        window.location.pathname,
+                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js'
+                    ];
+
+                    self.addEventListener('install', function(event) {
+                        event.waitUntil(
+                            caches.open(CACHE_NAME).then(function(cache) {
+                                return cache.addAll(urlsToCache);
+                            })
+                        );
+                    });
+
+                    self.addEventListener('fetch', function(event) {
+                        event.respondWith(
+                            caches.match(event.request).then(function(response) {
+                                if (response) {
+                                    return response;
+                                }
+                                return fetch(event.request);
+                            })
+                        );
+                    });
+                `], { type: 'text/javascript' });
+
+                var workerUrl = URL.createObjectURL(blob);
+                navigator.serviceWorker.register(workerUrl).catch(function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js';
 
         var flashcardAssetsDeck = [];
         var activeCardIndex = 0;
         var serializedDeckForDb = []; 
+        var isShuffleFrozen = false;
 
         var dbName = "FlashcarditTextDB";
         var dbVersion = 1;
@@ -235,6 +315,10 @@
                     flashcardAssetsDeck = record.deck;
                     serializedDeckForDb = record.deck;
                     activeCardIndex = record.activeIndex || 0;
+                    isShuffleFrozen = record.shuffleFrozen || false;
+
+                    document.getElementById('freeze-shuffle-toggle').checked = isShuffleFrozen;
+                    document.getElementById('shuffle-btn').disabled = isShuffleFrozen;
 
                     document.getElementById('status').style.display = 'none';
                     document.getElementById('card-view').style.display = 'flex';
@@ -260,7 +344,8 @@
             var putReq = store.put({
                 id: "active_deck",
                 activeIndex: activeCardIndex,
-                deck: serializedDeckForDb
+                deck: serializedDeckForDb,
+                shuffleFrozen: isShuffleFrozen
             });
 
             putReq.onsuccess = function() {
@@ -280,6 +365,8 @@
                 var existingRecord = getReq.result;
                 if (existingRecord) {
                     existingRecord.activeIndex = activeCardIndex;
+                    existingRecord.deck = flashcardAssetsDeck;
+                    existingRecord.shuffleFrozen = isShuffleFrozen;
                     store.put(existingRecord);
                 }
             };
@@ -293,6 +380,12 @@
             clearReq.onsuccess = function() {
                 location.reload();
             };
+        }
+
+        function toggleFreezeShuffling() {
+            isShuffleFrozen = document.getElementById('freeze-shuffle-toggle').checked;
+            document.getElementById('shuffle-btn').disabled = isShuffleFrozen;
+            saveLibraryProgress();
         }
 
         function handlePDFUpload(event) {
@@ -313,6 +406,9 @@
             flashcardAssetsDeck = [];
             serializedDeckForDb = [];
             activeCardIndex = 0;
+            isShuffleFrozen = false;
+            document.getElementById('freeze-shuffle-toggle').checked = false;
+            document.getElementById('shuffle-btn').disabled = false;
 
             var fileReader = new FileReader();
             fileReader.onload = function() {
@@ -358,12 +454,10 @@
                                     pageRawText += textContent.items[i].str + " ";
                                 }
 
-                                // Handle clean line breaks and isolate sentences by splitting at standard period points
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
                                     
-                                    // Make sure we aren't creating cards out of empty punctuation fragments
                                     if (sanitizedSentence.length > 6) {
                                         var itemObject = {
                                             text: sanitizedSentence + ".",
@@ -420,26 +514,13 @@
         }
 
         function shuffleDeck() {
-            if (flashcardAssetsDeck.length <= 1) return;
+            if (flashcardAssetsDeck.length <= 1 || isShuffleFrozen) return;
             
             flashcardAssetsDeck.sort(function() { return Math.random() - 0.5; });
             activeCardIndex = 0;
             
             renderActiveCard();
-            
-            if (db) {
-                var transaction = db.transaction(["library"], "readwrite");
-                var store = transaction.objectStore("library");
-                var getReq = store.get("active_deck");
-                getReq.onsuccess = function() {
-                    var record = getReq.result;
-                    if(record) {
-                        record.deck.sort(function() { return 0.5 - Math.random(); });
-                        record.activeIndex = 0;
-                        store.put(record);
-                    }
-                };
-            }
+            saveLibraryProgress();
         }
     </script>
 </body>
