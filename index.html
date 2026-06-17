@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Flashcardit - Text Slices</title>
+    <title>Flashcardit</title>
     
     <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZsYXNoY2FyZGl0IiwKICAic2hvcnRfbmFtZSI6ICJGbGFzaGNhcmRpdCIsCiAgInN0YXJ0X3VybCI6ICIuL2luZGV4Lmh0bWwiLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxYTE2MTMiLAogICJ0aGVtZV9Y29sb3IiOiAiIzI0MWUxYSIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vY2RuLWljb25zLXBuZy5mbGF0aWNvbi5jb20vNTEyLzMwNjcvMzA2NzM5MC5wbmciLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXJrYWJsZSIKICAgIH0KICBdCn0=">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -249,7 +249,7 @@
     <div id="app-workspace">
         <div class="upload-container-row" id="top-upload-box">
             <label class="file-upload-label" for="file-input" id="upload-label-text">📁 Select PDF File</label>
-            <input type="file" id="file-input">
+            <input type="file" id="file-input" accept="application/pdf">
             <button class="btn-danger" id="clear-lib-btn" style="display:none;" onclick="clearSavedLibrary()">Reset Deck</button>
         </div>
 
@@ -279,28 +279,23 @@
     </div>
 
     <script>
-        // --- SECURE SYSTEM-COMPLIANT APPLICATION INSTALLATION SETUP ---
+        // --- SYSTEM COMPLIANT SERVICE WORKER ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                // Serialized clean operational scope matching network patterns safely
                 var swPayload = "self.addEventListener('install',(e)=>{self.skipWaiting();});self.addEventListener('activate',(e)=>{return self.clients.claim();});self.addEventListener('fetch',(e)=>{e.respondWith(fetch(e.request).catch(()=>new Response('Offline Mode Activated')));});";
                 var blobTarget = new Blob([swPayload], { type: 'text/javascript' });
                 navigator.serviceWorker.register(URL.createObjectURL(blobTarget)).catch(function(err) {
-                    console.log('SW initialization completed.');
+                    console.log('SW registration initialized.');
                 });
             });
         }
 
-        // --- PRODUCTION LOCAL WORKER OVERRIDE LAYOUT ---
+        // --- FIXED INLINE WORKER CROSS-ORIGIN BYPASS ---
+        // Generates the worker completely within memory, keeping parsing operational everywhere
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        
-        // This stops PDF.js from attempting cross-origin operations and executes in the primary thread context directly
-        if (pdfjsLib) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = true;
-            if (window['pdfjs-dist/build/pdf'] && window['pdfjs-dist/build/pdf'].PDFJS) {
-                window['pdfjs-dist/build/pdf'].PDFJS.disableWorker = true;
-            }
-        }
+        var workerScriptCode = "importScripts('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js');";
+        var secureWorkerBlob = new Blob([workerScriptCode], { type: 'text/javascript' });
+        pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(secureWorkerBlob);
 
         var flashcardAssetsDeck = [];
         var originalAssetsOrder = []; 
@@ -323,7 +318,7 @@
             checkSavedLibraryProgress();
         };
         request.onerror = function() {
-            console.error("Database connection dropped.");
+            console.error("Database tracking failed.");
         };
 
         document.getElementById('file-input').addEventListener('change', handlePDFUpload);
@@ -436,10 +431,7 @@
             fileReader.onload = function() {
                 var typedarray = new Uint8Array(this.result);
                 
-                pdfjsLib.getDocument({ 
-                    data: typedarray,
-                    stopAtErrors: false
-                }).promise.then(function(pdf) {
+                pdfjsLib.getDocument({ data: typedarray }).promise.then(function(pdf) {
                     var totalPages = pdf.numPages;
                     var structuralUidCounter = 0;
                     
@@ -503,7 +495,7 @@
             
             function showErrorState() {
                 uploadLabel.innerText = "📁 Select PDF File";
-                statusLabel.innerHTML = "<strong>File layout processing exception encountered.</strong>";
+                statusLabel.innerHTML = "<strong>File layout processing exception encountered.</strong><br><span style='font-size:12px; font-weight:normal; color:#e06c75;'>Ensure the selected document contains an editable/selectable text layer. Scanned images require pre-OCR processing.</span>";
             }
             fileReader.readAsArrayBuffer(file);
         }
@@ -531,7 +523,6 @@
             }, 180);
         }
 
-        // Standard Deck Positioning Loops
         function navigateDeck(direction) {
             if (flashcardAssetsDeck.length === 0) return;
             activeCardIndex += direction;
