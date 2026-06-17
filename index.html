@@ -15,136 +15,161 @@
         body {
             margin: 0;
             padding: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f8fafc;
-            color: #0f172a;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Georgia, serif;
+            background-color: #1e1b18; /* Dark Warm Sepia / Charcoal */
+            color: #f4ecd8; /* Soft Sepia Cream */
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
         header {
-            background-color: #ffffff;
-            padding: 12px;
+            background-color: #2a2421; /* Deep Warm Sepia */
+            padding: 16px;
             text-align: center;
-            border-bottom: 1px solid #e2e8f0;
+            border-bottom: 1px solid #3d3530;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
 
         #app-workspace {
-            padding: 12px;
+            padding: 16px;
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
             flex: 1;
+            max-width: 600px;
+            margin: 0 auto;
+            width: 100%;
         }
 
         .upload-container-row {
             width: 100%;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
         }
 
         .flashcard-view {
-            background: #ffffff;
-            border-radius: 12px;
+            background: #2a2421;
+            border-radius: 16px;
             width: 100%;
-            height: 350px; 
+            height: 380px; 
             overflow: hidden;
-            border: 1px solid #e2e8f0;
+            border: 1px solid #3d3530;
             position: relative;
             display: flex;
             flex-direction: column;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
         }
 
         .card-text-wrapper {
             width: 100%;
-            height: 310px;
+            height: 334px;
             display: flex;
             justify-content: center;
             align-items: center;
             overflow-y: auto;
-            background: #ffffff;
+            background: #2a2421;
             box-sizing: border-box;
-            padding: 24px;
+            padding: 28px;
             text-align: center;
             -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
         }
 
         .card-text-content {
-            font-size: 18px;
+            font-size: 20px;
             line-height: 1.6;
-            color: #0f172a;
+            color: #e6dfcc;
             word-wrap: break-word;
             max-width: 100%;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Reading friendly animation state triggers via JS class injection */
+        .card-text-content.changing {
+            opacity: 0;
+            transform: translateY(10px);
         }
 
         .card-metadata-footer {
-            height: 38px;
-            background: #f1f5f9;
-            border-top: 1px solid #e2e8f0;
+            height: 46px;
+            background: #231e1b;
+            border-top: 1px solid #3d3530;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 14px;
+            padding: 0 18px;
             font-size: 13px;
             font-weight: bold;
-            color: #64748b;
+            color: #a39589;
+            letter-spacing: 0.05em;
         }
 
         .controls-row {
             display: flex;
             width: 100%;
-            padding: 16px 0;
+            padding: 20px 0;
+            gap: 8px;
         }
 
         button, label.file-upload-label {
             display: block;
             width: 100%;
             padding: 14px;
-            border-radius: 10px;
+            border-radius: 12px;
             border: none;
             font-size: 15px;
             font-weight: bold;
             text-align: center;
             cursor: pointer;
             box-sizing: border-box;
+            transition: background 0.2s ease, transform 0.1s ease;
+        }
+
+        button:active, label.file-upload-label:active {
+            transform: scale(0.98);
         }
 
         label.file-upload-label {
-            background-color: #2563eb;
-            color: white;
+            background-color: #c99a63; /* Warm Amber Sepia */
+            color: #1e1b18;
+            box-shadow: 0 4px 12px rgba(201, 154, 99, 0.2);
         }
 
         .btn-secondary {
-            background-color: #ffffff;
-            color: #0f172a;
-            border: 1px solid #cbd5e1;
-            margin: 0 4px;
+            background-color: #3d3530;
+            color: #e6dfcc;
+            border: 1px solid #4e443e;
+        }
+        .btn-secondary:hover {
+            background-color: #4e443e;
         }
 
         .btn-danger {
-            background-color: #ef4444;
-            color: white;
-            margin-top: 8px;
+            background-color: #8c3a3a; /* Dark Muted Maroon instead of bright red */
+            color: #f4ecd8;
+            margin-top: 12px;
         }
 
         .btn-shuffle {
-            background-color: #64748b;
-            color: white;
-            margin: 0 4px;
+            background-color: #574c45;
+            color: #f4ecd8;
         }
 
         .btn-next-ordered {
-            background-color: #10b981;
-            color: white;
-            margin: 0 4px;
+            background-color: #9c7243;
+            color: #f4ecd8;
             display: none;
         }
 
         .btn-save-lib {
-            background-color: #10b981;
-            color: white;
-            margin-bottom: 12px;
+            background-color: #9c7243;
+            color: #f4ecd8;
+            margin-bottom: 16px;
             display: none;
+            box-shadow: 0 4px 12px rgba(156, 114, 67, 0.2);
         }
 
         #file-input {
@@ -153,21 +178,22 @@
 
         .status-text {
             font-size: 16px;
-            color: #64748b;
+            color: #cdbfa8;
             text-align: center;
             font-weight: bold;
             padding: 40px 20px;
-            background: white;
-            border-radius: 12px;
-            border: 1px dashed #cbd5e1;
+            background: #2a2421;
+            border-radius: 16px;
+            border: 2px dashed #4e443e;
             margin-top: 20px;
+            line-height: 1.5;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h4 style="margin:0; font-weight: bold; color: #1e293b;">Flashcardit Workspace</h4>
+        <h4 style="margin:0; font-weight: bold; color: #c99a63; letter-spacing: 0.03em;">Flashcardit Workspace</h4>
     </header>
 
     <div id="app-workspace">
@@ -179,7 +205,7 @@
 
         <div id="status" class="status-text">
             Tap the button above to upload a textbook or notes PDF.<br><br>
-            <span style="font-size: 13px; font-weight: normal; color: #94a3b8;">Extracts raw textbook text and partitions cleanly at every dot.</span>
+            <span style="font-size: 13px; font-weight: normal; color: #a39589;">Extracts raw textbook text and partitions cleanly at every dot.</span>
         </div>
 
         <button class="btn-save-lib" id="save-library-btn" onclick="commitDeckToIndexedDB()">📥 Add to Library</button>
@@ -457,17 +483,30 @@
 
         function renderActiveCard() {
             var container = document.getElementById('text-container');
-            container.innerHTML = '';
-
-            if(!flashcardAssetsDeck[activeCardIndex]) return;
-
-            var activeCard = flashcardAssetsDeck[activeCardIndex];
-            container.innerText = activeCard.text;
-
-            document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
-            document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
             
-            toggleNextOrderedButtonVisibility();
+            // Apply reading transition animation
+            container.classList.add('changing');
+            
+            setTimeout(function() {
+                container.innerHTML = '';
+
+                if(!flashcardAssetsDeck[activeCardIndex]) {
+                    container.classList.remove('changing');
+                    return;
+                }
+
+                var activeCard = flashcardAssetsDeck[activeCardIndex];
+                container.innerText = activeCard.text;
+
+                document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
+                document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
+                
+                toggleNextOrderedButtonVisibility();
+                
+                // Reset card scrolling position for reader comfort
+                document.querySelector('.card-text-wrapper').scrollTop = 0;
+                container.classList.remove('changing');
+            }, 150);
         }
 
         function navigateDeck(direction) {
