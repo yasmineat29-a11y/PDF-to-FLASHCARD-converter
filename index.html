@@ -156,6 +156,7 @@
             width: 100%;
             padding: 20px 0;
             gap: 8px;
+            flex-wrap: wrap; /* Graceful scaling on narrow screens */
         }
 
         button, label.file-upload-label {
@@ -164,12 +165,14 @@
             padding: 14px;
             border-radius: 12px;
             border: none;
-            font-size: 15px;
+            font-size: 14px;
             font-weight: bold;
             text-align: center;
             cursor: pointer;
             box-sizing: border-box;
             transition: background 0.2s ease, transform 0.1s ease;
+            flex: 1;
+            min-width: 80px;
         }
 
         button:active, label.file-upload-label:active {
@@ -180,6 +183,8 @@
             background-color: #8f7251; /* Dark Warm Sepia Tone Accent */
             color: #f4ecd8;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            flex: none;
+            width: 100%;
         }
 
         .btn-secondary {
@@ -195,6 +200,8 @@
             background-color: #692c2c; /* Muted deep dark red */
             color: #e4dcd3;
             margin-top: 12px;
+            flex: none;
+            width: 100%;
         }
 
         .btn-shuffle {
@@ -205,7 +212,7 @@
         .btn-next-ordered {
             background-color: #6e553a;
             color: #e4dcd3;
-            display: none;
+            display: none; /* Controlled by display toggle in setup scripts */
         }
 
         .btn-save-lib {
@@ -359,17 +366,8 @@
 
         function toggleNextOrderedButtonVisibility() {
             var nextOrderedBtn = document.getElementById('next-ordered-btn');
-            if (flashcardAssetsDeck.length <= 1 || !flashcardAssetsDeck[activeCardIndex]) {
-                nextOrderedBtn.style.display = 'none';
-                return;
-            }
-
-            var currentCard = flashcardAssetsDeck[activeCardIndex];
-            // Check if the card right after our active index is NOT the chronological textbook successor
-            if (activeCardIndex < flashcardAssetsDeck.length - 1 && flashcardAssetsDeck[activeCardIndex + 1].uid === currentCard.uid + 1) {
-                nextOrderedBtn.style.display = 'none';
-            } else if (currentCard.uid >= originalAssetsOrder.length - 1) {
-                // If it's the very last text element of the entire PDF structure
+            // Permanently visible whenever active dataset exists
+            if (flashcardAssetsDeck.length <= 1) {
                 nextOrderedBtn.style.display = 'none';
             } else {
                 nextOrderedBtn.style.display = 'block';
@@ -553,4 +551,58 @@
                 toggleNextOrderedButtonVisibility();
                 
                 // Instant smooth scroll adjustments
-                document.querySelector('.card-text-wrapper').
+                document.querySelector('.card-text-wrapper').scrollTop = 0;
+                container.classList.remove('changing');
+            }, 180);
+        }
+
+        function navigateDeck(direction) {
+            if (flashcardAssetsDeck.length === 0) return;
+            activeCardIndex += direction;
+            if (activeCardIndex < 0) activeCardIndex = 0;
+            if (activeCardIndex >= flashcardAssetsDeck.length) activeCardIndex = flashcardAssetsDeck.length - 1;
+            
+            renderActiveCard();
+            saveLibraryProgress();
+        }
+
+        function shuffleDeck() {
+            if (flashcardAssetsDeck.length <= 1) return;
+            
+            var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
+            var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
+            
+            remainingItems.sort(function() { return Math.random() - 0.5; });
+            flashcardAssetsDeck = historyItems.concat(remainingItems);
+            
+            renderActiveCard();
+            saveLibraryProgress();
+        }
+
+        function goToNextInStructuralOrder() {
+            if (flashcardAssetsDeck.length === 0) return;
+
+            var currentCard = flashcardAssetsDeck[activeCardIndex];
+            var targetUid = currentCard.uid + 1;
+
+            // Find the sequential structural card from the source master list
+            var absoluteNextCard = originalAssetsOrder.find(item => item.uid === targetUid);
+            if (!absoluteNextCard) return;
+
+            // Strip out any duplicate instance of this upcoming target card in the remaining unviewed stack
+            var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
+            var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
+            var filteredRemaining = remainingItems.filter(item => item.uid !== targetUid);
+
+            // Splice the true consecutive card right in front of the active card position
+            flashcardAssetsDeck = historyItems.concat([absoluteNextCard], filteredRemaining);
+
+            // Move pointer forward precisely to our newly inserted chronological slide
+            activeCardIndex += 1;
+
+            renderActiveCard();
+            saveLibraryProgress();
+        }
+    </script>
+</body>
+</html>
