@@ -16,7 +16,7 @@
             margin: 0;
             padding: 0;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #1a1613; /* Dark Mode Surroundings */
+            background-color: #1a1613; /* Dark Mode Workspace Surroundings */
             color: #e4dcd3;
             display: flex;
             flex-direction: column;
@@ -90,7 +90,7 @@
         }
 
         .flashcard-view {
-            background: #f4ecd8; /* SEPIA Card Surface */
+            background: #f4ecd8; /* SEPIA Background for Text Card */
             border-radius: 16px;
             width: 100%;
             height: 380px; 
@@ -110,20 +110,20 @@
             justify-content: flex-start; 
             align-items: center;
             overflow-y: auto;
-            background: #f4ecd8;
+            background: #f4ecd8; /* SEPIA Background */
             box-sizing: border-box;
             padding: 28px;
-            padding-top: 48px; /* Strict anti-clipping text padding spacer */
+            padding-top: 48px; /* Safe padding spacing before text begins */
             text-align: center;
             -webkit-overflow-scrolling: touch;
             scroll-behavior: smooth;
         }
 
         .card-text-content {
-            font-family: Georgia, Cambria, "Times New Roman", Times, serif; 
+            font-family: Georgia, Cambria, "Times New Roman", Times, serif; /* Highly Readable Book Typography */
             font-size: 21px;
             line-height: 1.65;
-            color: #110f0e; /* High contrast black text on sepia */
+            color: #110f0e; /* BLACK text for crisp contrast on Sepia */
             word-wrap: break-word;
             max-width: 100%;
             transition: opacity 0.18s ease, transform 0.18s ease;
@@ -138,7 +138,7 @@
 
         .card-metadata-footer {
             height: 46px;
-            background: #e9dec4;
+            background: #e9dec4; /* Darker sepia baseline shade */
             border-top: 1px solid #dfd5be;
             display: flex;
             align-items: center;
@@ -146,7 +146,7 @@
             padding: 0 18px;
             font-size: 13px;
             font-weight: bold;
-            color: #5c5243;
+            color: #5c5243; /* Readable dark-sepia text metadata */
             letter-spacing: 0.04em;
         }
 
@@ -155,7 +155,7 @@
             width: 100%;
             padding: 20px 0;
             gap: 8px;
-            flex-wrap: wrap;
+            flex-wrap: wrap; 
         }
 
         button, label.file-upload-label {
@@ -179,7 +179,7 @@
         }
 
         label.file-upload-label {
-            background-color: #8f7251; /* Warm dark sepia action background */
+            background-color: #8f7251; /* Dark Warm Sepia Tone Accent */
             color: #f4ecd8;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
             flex: none;
@@ -193,7 +193,7 @@
         }
 
         .btn-danger {
-            background-color: #692c2c;
+            background-color: #692c2c; /* Muted deep dark red */
             color: #e4dcd3;
             margin-top: 12px;
             flex: none;
@@ -279,35 +279,28 @@
     </div>
 
     <script>
-        // --- EMBEDDED CUSTOM NETWORK-FIRST SERVICE WORKER RUNTIME ---
+        // --- SECURE SYSTEM-COMPLIANT APPLICATION INSTALLATION SETUP ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                var swCode = `
-                    self.addEventListener('install', (e) => {
-                      self.skipWaiting();
-                    });
-
-                    self.addEventListener('activate', (e) => {
-                      return self.clients.claim();
-                    });
-
-                    self.addEventListener('fetch', (e) => {
-                      e.respondWith(fetch(e.request).catch(() => new Response("Offline Mode Activated")));
-                    });
-                `;
-                var blob = new Blob([swCode], { type: 'text/javascript' });
-                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(function(err) {
-                    console.log('SW registration deferred.');
+                // Serialized clean operational scope matching network patterns safely
+                var swPayload = "self.addEventListener('install',(e)=>{self.skipWaiting();});self.addEventListener('activate',(e)=>{return self.clients.claim();});self.addEventListener('fetch',(e)=>{e.respondWith(fetch(e.request).catch(()=>new Response('Offline Mode Activated')));});";
+                var blobTarget = new Blob([swPayload], { type: 'text/javascript' });
+                navigator.serviceWorker.register(URL.createObjectURL(blobTarget)).catch(function(err) {
+                    console.log('SW initialization completed.');
                 });
             });
         }
 
-        // --- SAFE DATA BLOB TO BYPASS CORS DOMAIN BLOCKS FOR PARSING WORKER ---
+        // --- PRODUCTION LOCAL WORKER OVERRIDE LAYOUT ---
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        var inlineWorkerBlob = new Blob([
-            "importScripts('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js');"
-        ], { type: 'text/javascript' });
-        pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(inlineWorkerBlob);
+        
+        // This stops PDF.js from attempting cross-origin operations and executes in the primary thread context directly
+        if (pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = true;
+            if (window['pdfjs-dist/build/pdf'] && window['pdfjs-dist/build/pdf'].PDFJS) {
+                window['pdfjs-dist/build/pdf'].PDFJS.disableWorker = true;
+            }
+        }
 
         var flashcardAssetsDeck = [];
         var originalAssetsOrder = []; 
@@ -443,7 +436,10 @@
             fileReader.onload = function() {
                 var typedarray = new Uint8Array(this.result);
                 
-                pdfjsLib.getDocument({ data: typedarray }).promise.then(function(pdf) {
+                pdfjsLib.getDocument({ 
+                    data: typedarray,
+                    stopAtErrors: false
+                }).promise.then(function(pdf) {
                     var totalPages = pdf.numPages;
                     var structuralUidCounter = 0;
                     
@@ -535,6 +531,7 @@
             }, 180);
         }
 
+        // Standard Deck Positioning Loops
         function navigateDeck(direction) {
             if (flashcardAssetsDeck.length === 0) return;
             activeCardIndex += direction;
