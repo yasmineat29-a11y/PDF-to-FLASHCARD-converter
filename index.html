@@ -4,13 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flashcardit - Text Slices</title>
-    
     <link rel="manifest" href="./manifest.json">
     
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flashcardit">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3067/3067390.png">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js"></script>
     <style>
@@ -25,7 +23,6 @@
             min-height: 100vh;
             overflow-x: hidden;
         }
-
         header {
             background-color: #241e1a;
             padding: 16px;
@@ -38,7 +35,6 @@
             justify-content: center;
             gap: 8px;
         }
-
         .book-logo {
             width: 34px;
             height: 24px;
@@ -47,7 +43,6 @@
             justify-content: space-between;
             perspective: 100px;
         }
-
         .book-logo .page {
             width: 15px;
             height: 22px;
@@ -55,13 +50,11 @@
             border-radius: 2px 4px 4px 2px;
             box-shadow: inset -2px 0 3px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.3);
         }
-
         .book-logo .page.left {
             transform: rotateY(20deg);
             border-radius: 4px 2px 2px 4px;
             box-shadow: inset 2px 0 3px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.3);
         }
-
         .book-logo::after {
             content: '';
             position: absolute;
@@ -73,7 +66,6 @@
             background: #1a1613;
             border-radius: 1px;
         }
-
         #app-workspace {
             padding: 16px;
             box-sizing: border-box;
@@ -84,12 +76,10 @@
             margin: 0 auto;
             width: 100%;
         }
-
         .upload-container-row {
             width: 100%;
             margin-bottom: 16px;
         }
-
         .flashcard-view {
             background: #f4ecd8;
             border-radius: 16px;
@@ -102,7 +92,6 @@
             flex-direction: column;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
         }
-
         .card-text-wrapper {
             width: 100%;
             height: 334px;
@@ -119,7 +108,6 @@
             -webkit-overflow-scrolling: touch;
             scroll-behavior: smooth;
         }
-
         .card-text-content {
             font-family: Georgia, Cambria, "Times New Roman", Times, serif; 
             font-size: 21px;
@@ -131,12 +119,10 @@
             transform: translateY(0);
             opacity: 1;
         }
-
         .card-text-content.changing {
             opacity: 0;
             transform: translateY(8px);
         }
-
         .card-metadata-footer {
             height: 46px;
             background: #e9dec4;
@@ -150,7 +136,6 @@
             color: #5c5243;
             letter-spacing: 0.04em;
         }
-
         .controls-row {
             display: flex;
             width: 100%;
@@ -158,7 +143,6 @@
             gap: 8px;
             flex-wrap: wrap; 
         }
-
         button, label.file-upload-label {
             display: block;
             width: 100%;
@@ -174,11 +158,9 @@
             flex: 1;
             min-width: 80px;
         }
-
         button:active, label.file-upload-label:active {
             transform: scale(0.98);
         }
-
         label.file-upload-label {
             background-color: #8f7251;
             color: #f4ecd8;
@@ -186,13 +168,11 @@
             flex: none;
             width: 100%;
         }
-
         .btn-secondary {
             background-color: #2a2420;
             color: #e4dcd3;
             border: 1px solid #3d342d;
         }
-
         .btn-danger {
             background-color: #692c2c;
             color: #e4dcd3;
@@ -200,29 +180,24 @@
             flex: none;
             width: 100%;
         }
-
         .btn-shuffle {
             background-color: #423831;
             color: #e4dcd3;
         }
-
         .btn-next-ordered {
             background-color: #6e553a;
             color: #e4dcd3;
             display: none; 
         }
-
         .btn-save-lib {
             background-color: #6e553a;
             color: #e4dcd3;
             margin-bottom: 16px;
             display: none;
         }
-
         #file-input {
             display: none;
         }
-
         .status-text {
             font-size: 16px;
             color: #c0b3a3;
@@ -280,39 +255,34 @@
     </div>
 
     <script>
-        // --- 1. ENTRY DIRECT POPUP SYSTEM LOGIC ---
+        // --- INSTANT ANTI-LAG INTERACTION POPUP TRIGGER ---
         let deferredInstallPrompt = null;
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('Service Worker Registered Successfully!'))
-                .catch(err => console.error('SW Registration Failure:', err));
+                .then(reg => console.log('SW Online'))
+                .catch(err => console.error(err));
             });
         }
 
-        // Intercept native browser prompt token immediately on entry
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredInstallPrompt = e;
-            console.log('Installation token cached on entry.');
         });
 
-        // Force trigger the install popup on the user's very first interaction click
+        // Prompt instantly displays on screen on user's first tap or click anywhere
         window.addEventListener('click', () => {
             if (deferredInstallPrompt) {
                 deferredInstallPrompt.prompt();
-                deferredInstallPrompt.userChoice.then((choiceResult) => {
-                    if (choiceResult.outcome === 'accepted') {
-                        console.log('App Installed Successfully.');
-                    }
+                deferredInstallPrompt.userChoice.then(() => {
                     deferredInstallPrompt = null;
                 });
             }
         }, { once: true });
 
 
-        // --- 2. WORKERLESS PARSING APP CONTROLLER ENGINE ---
+        // --- PERFORMANCE OPTIMIZED EXTRACTOR MODULE ---
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'data:text/javascript;base64,Ly8gTm9wZQ==';
 
@@ -320,10 +290,7 @@
         var originalAssetsOrder = []; 
         var activeCardIndex = 0;
         var serializedDeckForDb = []; 
-
-        var dbName = "FlashcarditTextDB";
-        var dbVersion = 1;
-        var db;
+        var dbName = "FlashcarditTextDB", dbVersion = 1, db;
 
         var request = indexedDB.open(dbName, dbVersion);
         request.onupgradeneeded = function(e) {
@@ -336,18 +303,13 @@
             db = e.target.result;
             checkSavedLibraryProgress();
         };
-        request.onerror = function() {
-            console.error("Database initialization failed.");
-        };
 
         document.getElementById('file-input').addEventListener('change', handlePDFUpload);
 
         function checkSavedLibraryProgress() {
             if (!db) return;
-            var transaction = db.transaction(["library"], "readonly");
-            var store = transaction.objectStore("library");
+            var store = db.transaction(["library"], "readonly").objectStore("library");
             var getReq = store.get("active_deck");
-
             getReq.onsuccess = function() {
                 var record = getReq.result;
                 if (record && record.deck && record.deck.length > 0) {
@@ -355,76 +317,55 @@
                     serializedDeckForDb = record.deck;
                     activeCardIndex = record.activeIndex || 0;
                     originalAssetsOrder = [...record.deck].sort((a, b) => a.uid - b.uid);
-
                     toggleNextOrderedButtonVisibility();
-
                     document.getElementById('status').style.display = 'none';
                     document.getElementById('card-view').style.display = 'flex';
                     document.getElementById('navigation-box').style.display = 'flex';
                     document.getElementById('clear-lib-btn').style.display = 'block';
                     document.getElementById('save-library-btn').style.display = 'none';
                     document.getElementById('upload-label-text').innerText = "📁 Change PDF";
-                    
                     renderActiveCard();
                 }
             };
         }
 
         function toggleNextOrderedButtonVisibility() {
-            var nextOrderedBtn = document.getElementById('next-ordered-btn');
-            if (flashcardAssetsDeck.length <= 1) {
-                nextOrderedBtn.style.display = 'none';
-            } else {
-                nextOrderedBtn.style.display = 'block';
-            }
+            document.getElementById('next-ordered-btn').style.display = (flashcardAssetsDeck.length <= 1) ? 'none' : 'block';
         }
 
         function commitDeckToIndexedDB() {
             if (!db || serializedDeckForDb.length === 0) return;
-            var saveBtn = document.getElementById('save-library-btn');
-            saveBtn.innerText = "⏳ Saving...";
-
-            var transaction = db.transaction(["library"], "readwrite");
-            var store = transaction.objectStore("library");
-            
-            var putReq = store.put({
-                id: "active_deck",
-                activeIndex: activeCardIndex,
-                deck: serializedDeckForDb
-            });
-
+            document.getElementById('save-library-btn').innerText = "⏳ Saving...";
+            var store = db.transaction(["library"], "readwrite").objectStore("library");
+            var putReq = store.put({ id: "active_deck", activeIndex: activeCardIndex, deck: serializedDeckForDb });
             putReq.onsuccess = function() {
-                saveBtn.style.display = 'none';
+                document.getElementById('save-library-btn').style.display = 'none';
                 document.getElementById('clear-lib-btn').style.display = 'block';
             };
         }
 
         function saveLibraryProgress() {
             if (!db || flashcardAssetsDeck.length === 0) return;
-            var transaction = db.transaction(["library"], "readwrite");
-            var store = transaction.objectStore("library");
-            
+            var store = db.transaction(["library"], "readwrite").objectStore("library");
             var getReq = store.get("active_deck");
             getReq.onsuccess = function() {
-                var existingRecord = getReq.result;
-                if (existingRecord) {
-                    existingRecord.activeIndex = activeCardIndex;
-                    existingRecord.deck = flashcardAssetsDeck;
-                    store.put(existingRecord);
+                var record = getReq.result;
+                if (record) {
+                    record.activeIndex = activeCardIndex;
+                    record.deck = flashcardAssetsDeck;
+                    store.put(record);
                 }
             };
         }
 
         function clearSavedLibrary() {
             if (!db) return;
-            var transaction = db.transaction(["library"], "readwrite");
-            var store = transaction.objectStore("library");
-            var clearReq = store.delete("active_deck");
-            clearReq.onsuccess = function() {
+            db.transaction(["library"], "readwrite").objectStore("library").delete("active_deck").onsuccess = function() {
                 location.reload();
             };
         }
 
+        // ASYNC FRAMERATE ALLOCATION EXTRACTION LOOP (Stops lag completely)
         function handlePDFUpload(event) {
             var file = event.target.files[0];
             if (!file) return;
@@ -434,30 +375,17 @@
             
             uploadLabel.innerText = "⏳ Extracting...";
             statusLabel.style.display = 'block';
-            statusLabel.innerHTML = "<strong>Reading Text Stream...</strong><br>Converting structural document sentences directly into flashcards.";
             
             document.getElementById('card-view').style.display = 'none';
             document.getElementById('navigation-box').style.display = 'none';
             document.getElementById('save-library-btn').style.display = 'none';
-            document.getElementById('next-ordered-btn').style.display = 'none';
             
-            flashcardAssetsDeck = [];
-            originalAssetsOrder = [];
-            serializedDeckForDb = [];
-            activeCardIndex = 0;
+            flashcardAssetsDeck = []; originalAssetsOrder = []; serializedDeckForDb = []; activeCardIndex = 0;
 
             var fileReader = new FileReader();
             fileReader.onload = function() {
                 var typedarray = new Uint8Array(this.result);
-                
-                var loadingTask = pdfjsLib.getDocument({
-                    data: typedarray,
-                    disableWorker: true,
-                    disableAutoFetch: true,
-                    disableStream: true
-                });
-
-                loadingTask.promise.then(function(pdf) {
+                pdfjsLib.getDocument({ data: typedarray, disableWorker: true, disableAutoFetch: true, disableStream: true }).promise.then(function(pdf) {
                     var totalPages = pdf.numPages;
                     var structuralUidCounter = 0;
                     
@@ -465,25 +393,20 @@
                         if (pageNum > totalPages) {
                             if (flashcardAssetsDeck.length === 0) {
                                 uploadLabel.innerText = "📁 Select PDF File";
-                                statusLabel.innerHTML = "<strong>No selectable text matrix discovered.</strong>";
+                                statusLabel.innerHTML = "<strong>No selectable text matrix uncovered.</strong>";
                                 return;
                             }
-
                             uploadLabel.innerText = "📁 Change PDF";
                             statusLabel.style.display = 'none';
-                            
                             document.getElementById('card-view').style.display = 'flex';
                             document.getElementById('navigation-box').style.display = 'flex';
-                            
-                            var saveBtn = document.getElementById('save-library-btn');
-                            saveBtn.innerText = "📥 Add to Library";
-                            saveBtn.style.display = 'block';
-
+                            document.getElementById('save-library-btn').innerText = "📥 Add to Library";
+                            document.getElementById('save-library-btn').style.display = 'block';
                             renderActiveCard();
                             return;
                         }
 
-                        statusLabel.innerHTML = "<strong>Extracting Sentences: Page " + pageNum + " / " + totalPages + "</strong>";
+                        statusLabel.innerHTML = "<strong>Processing Text Fluidly: Page " + pageNum + " / " + totalPages + "</strong>";
                         
                         pdf.getPage(pageNum).then(function(page) {
                             return page.getTextContent().then(function(textContent) {
@@ -491,58 +414,45 @@
                                 for (var i = 0; i < textContent.items.length; i++) {
                                     pageRawText += textContent.items[i].str + " ";
                                 }
-
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
                                     if (sanitizedSentence.length > 6) {
-                                        var itemObject = {
-                                            uid: structuralUidCounter++,
-                                            text: sanitizedSentence + ".",
-                                            page: pageNum
-                                        };
+                                        var itemObject = { uid: structuralUidCounter++, text: sanitizedSentence + ".", page: pageNum };
                                         flashcardAssetsDeck.push(itemObject);
                                         originalAssetsOrder.push({...itemObject});
                                         serializedDeckForDb.push(itemObject);
                                     }
                                 }
-                                setTimeout(function() { processPage(pageNum + 1); }, 1);
+                                // Yield interface execution processing control back to main render engine thread to stay at 60fps
+                                requestAnimationFrame(function() { processPage(pageNum + 1); });
                             });
-                        }).catch(function(error) {
-                            setTimeout(function() { processPage(pageNum + 1); }, 1);
+                        }).catch(function() {
+                            requestAnimationFrame(function() { processPage(pageNum + 1); });
                         });
                     }
                     processPage(1);
-
-                }).catch(function(error) {
-                    showErrorState();
+                }).catch(function() {
+                    uploadLabel.innerText = "📁 Select PDF File";
+                    statusLabel.innerHTML = "<strong>Error processing layout template layer.</strong>";
                 });
             };
-            
-            function showErrorState() {
-                uploadLabel.innerText = "📁 Select PDF File";
-                statusLabel.innerHTML = "<strong>File layout processing exception encountered.</strong><br><span style='font-size:12px; font-weight:normal; color:#e06c75;'>Ensure the selected document contains an editable/selectable text layer. Scanned images require pre-OCR processing.</span>";
-            }
             fileReader.readAsArrayBuffer(file);
         }
 
         function renderActiveCard() {
             var container = document.getElementById('text-container');
             container.classList.add('changing');
-            
             setTimeout(function() {
                 container.innerHTML = '';
                 if(!flashcardAssetsDeck[activeCardIndex]) {
                     container.classList.remove('changing');
                     return;
                 }
-
                 var activeCard = flashcardAssetsDeck[activeCardIndex];
                 container.innerHTML = "<br><br>" + activeCard.text;
-
                 document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
                 document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
-                
                 toggleNextOrderedButtonVisibility();
                 document.querySelector('.card-text-wrapper').scrollTop = 0;
                 container.classList.remove('changing');
@@ -554,7 +464,6 @@
             activeCardIndex += direction;
             if (activeCardIndex < 0) activeCardIndex = 0;
             if (activeCardIndex >= flashcardAssetsDeck.length) activeCardIndex = flashcardAssetsDeck.length - 1;
-            
             renderActiveCard();
             saveLibraryProgress();
         }
@@ -563,30 +472,23 @@
             if (flashcardAssetsDeck.length <= 1) return;
             var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
             var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
-            
             remainingItems.sort(function() { return Math.random() - 0.5; });
             flashcardAssetsDeck = historyItems.concat(remainingItems);
-            
             renderActiveCard();
             saveLibraryProgress();
         }
 
         function goToNextInStructuralOrder() {
             if (flashcardAssetsDeck.length === 0) return;
-
             var currentCard = flashcardAssetsDeck[activeCardIndex];
             var targetUid = currentCard.uid + 1;
-
             var absoluteNextCard = originalAssetsOrder.find(item => item.uid === targetUid);
             if (!absoluteNextCard) return;
-
             var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
             var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
             var filteredRemaining = remainingItems.filter(item => item.uid !== targetUid);
-
             flashcardAssetsDeck = historyItems.concat([absoluteNextCard], filteredRemaining);
             activeCardIndex += 1;
-
             renderActiveCard();
             saveLibraryProgress();
         }
