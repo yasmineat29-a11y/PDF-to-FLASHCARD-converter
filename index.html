@@ -280,7 +280,7 @@
     </div>
 
     <script>
-        // --- 1. ENTRY POPUP LOGIC SYSTEM ---
+        // --- 1. ENTRY POPUP SYSTEM LOGIC ---
         let deferredInstallPrompt = null;
 
         if ('serviceWorker' in navigator) {
@@ -306,9 +306,10 @@
         }, { once: true });
 
 
-        // --- 2. ASYNC SEGMENTED EXTRACTION MODULE ---
+        // --- 2. FIXED STABLE PDF EXTRACTION WORKER CONTROLLER ---
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'data:text/javascript;base64,Ly8gTm9wZQ==';
+        // Points natively to a reliable matching CDN background worker endpoint file
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js';
 
         var flashcardAssetsDeck = [];
         var originalAssetsOrder = []; 
@@ -403,7 +404,7 @@
             };
         }
 
-        // Sequential text extraction wrapped in micro-task timeouts to stop UI freeze
+        // Fixed non-blocking engine: Loops pages via micro-task wrappers without breaking UI render paints
         function handlePDFUpload(event) {
             var file = event.target.files[0];
             if (!file) return;
@@ -429,12 +430,8 @@
             fileReader.onload = function() {
                 var typedarray = new Uint8Array(this.result);
                 
-                pdfjsLib.getDocument({
-                    data: typedarray,
-                    disableWorker: true,
-                    disableAutoFetch: true,
-                    disableStream: true
-                }).promise.then(function(pdf) {
+                // Removed defunct worker arguments to clear error breaks
+                pdfjsLib.getDocument({ data: typedarray }).promise.then(function(pdf) {
                     var totalPages = pdf.numPages;
                     var structuralUidCounter = 0;
                     
@@ -483,7 +480,7 @@
                                         serializedDeckForDb.push(itemObject);
                                     }
                                 }
-                                // Yield control to the browser paint thread for a split second to prevent lagging layout freezes
+                                // Yield processing context frames back to screen to keep UI ticking smoothly
                                 setTimeout(function() { processPage(pageNum + 1); }, 0);
                             });
                         }).catch(function() {
@@ -492,7 +489,8 @@
                     }
                     processPage(1);
 
-                }).catch(function() {
+                }).catch(function(error) {
+                    console.error(error);
                     uploadLabel.innerText = "📁 Select PDF File";
                     statusLabel.innerHTML = "<strong>File layout processing exception encountered.</strong>";
                 });
@@ -556,4 +554,14 @@
 
             var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
             var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
-            var filteredRemaining = remainingItems.filter(item => item
+            var filteredRemaining = remainingItems.filter(item => item.uid !== targetUid);
+
+            flashcardAssetsDeck = historyItems.concat([absoluteNextCard], filteredRemaining);
+            activeCardIndex += 1;
+
+            renderActiveCard();
+            saveLibraryProgress();
+        }
+    </script>
+</body>
+</html>
