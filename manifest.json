@@ -1,10 +1,10 @@
 {
-  "name": "Mobile Card Studio",
-  "short_name": "Card Studio",
+  "name": "Flashcardit",
+  "short_name": "Flashcardit",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#2563eb",
+  "background_color": "#1a1613",
+  "theme_color": "#241e1a",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3067/3067390.png",
