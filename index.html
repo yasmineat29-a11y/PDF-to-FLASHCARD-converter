@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flashcardit - Text Slices</title>
     
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZsYXNoY2FyZGl0IiwKICAic2hvcnRfbmFtZSI6ICJGbGFzaGNhcmRpdCIsCiAgInN0YXJ0X3VybCI6ICIuL2luZGV4Lmh0bWwiLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMxYTE2MTMiLAogICJ0aGVtZV9Y29sb3IiOiAiIzI0MWUxYSIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vY2RuLWljb25zLXBuZy5mbGF0aWNvbi5jb20vNTEyLzMwNjcvMzA2NzM5MC5wbmciLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXJrYWJsZSIKICAgIH0KICBdCn0=">
+    <link rel="manifest" href="./manifest.json">
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flashcardit">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3067/3067390.png">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js"></script>
     <style>
@@ -278,20 +280,39 @@
     </div>
 
     <script>
-        // --- BROWSER-COMPLIANT SERVICE WORKER ROUTE ---
-        // Registers using a standard text URI stream data injection to grant direct installation privileges
+        // --- 1. ENTRY DIRECT POPUP SYSTEM LOGIC ---
+        let deferredInstallPrompt = null;
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
-                var swBodyString = "self.addEventListener('install',(e)=>{self.skipWaiting();});self.addEventListener('activate',(e)=>{return self.clients.claim();});self.addEventListener('fetch',(e)=>{e.respondWith(fetch(e.request).catch(()=>new Response('Offline Mode Activated')));});";
-                var encodedUriData = "data:text/javascript;base64," + btoa(swBodyString);
-                navigator.serviceWorker.register(encodedUriData, { scope: './' }).catch(function(err) {
-                    console.log('PWA framework registration bypass active.');
-                });
+                navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('Service Worker Registered Successfully!'))
+                .catch(err => console.error('SW Registration Failure:', err));
             });
         }
 
-        // --- STABLE WORKERLESS PROCESSING PLATFORM ---
-        // Explicitly stops external files from executing, forcing tasks to run completely inside local execution domains
+        // Intercept native browser prompt token immediately on entry
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            console.log('Installation token cached on entry.');
+        });
+
+        // Force trigger the install popup on the user's very first interaction click
+        window.addEventListener('click', () => {
+            if (deferredInstallPrompt) {
+                deferredInstallPrompt.prompt();
+                deferredInstallPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('App Installed Successfully.');
+                    }
+                    deferredInstallPrompt = null;
+                });
+            }
+        }, { once: true });
+
+
+        // --- 2. WORKERLESS PARSING APP CONTROLLER ENGINE ---
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'data:text/javascript;base64,Ly8gTm9wZQ==';
 
@@ -316,7 +337,7 @@
             checkSavedLibraryProgress();
         };
         request.onerror = function() {
-            console.error("Database storage failed.");
+            console.error("Database initialization failed.");
         };
 
         document.getElementById('file-input').addEventListener('change', handlePDFUpload);
@@ -404,7 +425,6 @@
             };
         }
 
-        // --- CORS-FREE RUNTIME PARSING LAYER ---
         function handlePDFUpload(event) {
             var file = event.target.files[0];
             if (!file) return;
@@ -430,7 +450,6 @@
             fileReader.onload = function() {
                 var typedarray = new Uint8Array(this.result);
                 
-                // Directly parsing through native JavaScript calls without workers
                 var loadingTask = pdfjsLib.getDocument({
                     data: typedarray,
                     disableWorker: true,
@@ -446,7 +465,7 @@
                         if (pageNum > totalPages) {
                             if (flashcardAssetsDeck.length === 0) {
                                 uploadLabel.innerText = "📁 Select PDF File";
-                                statusLabel.innerHTML = "<strong>No selectable character matrices uncovered in this layout layout.</strong>";
+                                statusLabel.innerHTML = "<strong>No selectable text matrix discovered.</strong>";
                                 return;
                             }
 
