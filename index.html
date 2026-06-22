@@ -101,7 +101,7 @@
             display: flex;
             flex-direction: column;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-            touch-action: pan-y; /* Allows vertical scrolling inside cards while intercepting horizontal gestures */
+            touch-action: pan-y; 
         }
 
         .card-text-wrapper {
@@ -122,15 +122,16 @@
         }
 
         .card-text-content {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, Georgia, Cambria, "Times New Roman", Times, serif; 
-            font-size: 21px;
-            line-height: 1.65;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            font-size: 24px;
+            line-height: 1.7;
             color: #110f0e;
             word-wrap: break-word;
             max-width: 100%;
             transition: opacity 0.18s ease, transform 0.18s ease;
             transform: translateY(0);
             opacity: 1;
+            width: 100%;
         }
 
         .card-text-content.changing {
@@ -467,7 +468,23 @@
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
+                                    
                                     if (sanitizedSentence.length > 6) {
+                                        // --- STREAM RECONSTRUCTION MECHANISM FOR BROKEN ARABIC LAYER ---
+                                        if (/[\u0600-\u06FF]/.test(sanitizedSentence)) {
+                                            // 1. Reverse entire string back to correct logical left-to-right order
+                                            var reversed = sanitizedSentence.split('').reverse().join('');
+                                            // 2. Clear artificial padding spaces between continuous characters
+                                            reversed = reversed.replace(/([\u0600-\u06FF])\s+(?=[\u0600-\u06FF])/g, function(match, p1) {
+                                                // Retain word-gaps cleanly by leaving space trailing non-connecting glyphs
+                                                if (/[ادذرزوةءأإآى]/.test(p1)) {
+                                                    return p1 + " ";
+                                                }
+                                                return p1;
+                                            });
+                                            sanitizedSentence = reversed.replace(/\s+/g, ' ').trim();
+                                        }
+
                                         var itemObject = {
                                             uid: structuralUidCounter++,
                                             text: sanitizedSentence + ".",
