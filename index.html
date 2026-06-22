@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flashcardit">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3067/3067390.png">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2702/2702134.png">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -41,39 +41,10 @@
             gap: 8px;
         }
 
-        .book-logo {
-            width: 34px;
-            height: 24px;
-            position: relative;
-            display: flex;
-            justify-content: space-between;
-            perspective: 100px;
-        }
-
-        .book-logo .page {
-            width: 15px;
-            height: 22px;
-            background: #ccb9a3;
-            border-radius: 2px 4px 4px 2px;
-            box-shadow: inset -2px 0 3px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .book-logo .page.left {
-            transform: rotateY(20deg);
-            border-radius: 4px 2px 2px 4px;
-            box-shadow: inset 2px 0 3px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .book-logo::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 2px;
-            height: 24px;
-            background: #1a1613;
-            border-radius: 1px;
+        .app-logo-image {
+            width: 32px;
+            height: 32px;
+            object-fit: contain;
         }
 
         #app-workspace {
@@ -243,10 +214,7 @@
 <body>
 
     <header>
-        <div class="book-logo">
-            <div class="page left"></div>
-            <div class="page right"></div>
-        </div>
+        <img src="https://cdn-icons-png.flaticon.com/512/2702/2702134.png" alt="Logo" class="app-logo-image">
         <h4 style="margin:0; font-weight: bold; color: #ccb9a3; letter-spacing: 0.03em;">Flashcardit Workspace</h4>
     </header>
 
@@ -452,7 +420,6 @@
 
                     for (var j = 0; j < rawSlices.length; j++) {
                         var sanitizedSentence = rawSlices[j].replace(/\s+/g, ' ').trim();
-                        // Strip residual punctuation wrappers
                         sanitizedSentence = sanitizedSentence.replace(/^[\u060C\s،\.\-]+|[\u060C\s،\.\-]+$/g, '');
 
                         if (sanitizedSentence.length > 3) {
@@ -676,7 +643,7 @@
             saveLibraryProgress();
         }
 
-        // --- 6. SWIPE GESTURES ---
+        // --- 6. GESTURE RECOGNITION (LOW SENSITIVITY THRESHOLD: 110px) ---
         var touchStartX = 0;
         var touchEndX = 0;
         var cardViewElement = document.getElementById('card-view');
@@ -691,7 +658,7 @@
         }, { passive: true });
 
         function handleSwipeGesture() {
-            var swipeThresholdDistance = 30; 
+            var swipeThresholdDistance = 110; 
             var totalTraveledDistance = touchStartX - touchEndX;
 
             if (Math.abs(totalTraveledDistance) > swipeThresholdDistance) {
