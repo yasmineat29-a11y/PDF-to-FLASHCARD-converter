@@ -470,21 +470,6 @@
                                     var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
                                     
                                     if (sanitizedSentence.length > 6) {
-                                        // --- STREAM RECONSTRUCTION MECHANISM FOR BROKEN ARABIC LAYER ---
-                                        if (/[\u0600-\u06FF]/.test(sanitizedSentence)) {
-                                            // 1. Reverse entire string back to correct logical left-to-right order
-                                            var reversed = sanitizedSentence.split('').reverse().join('');
-                                            // 2. Clear artificial padding spaces between continuous characters
-                                            reversed = reversed.replace(/([\u0600-\u06FF])\s+(?=[\u0600-\u06FF])/g, function(match, p1) {
-                                                // Retain word-gaps cleanly by leaving space trailing non-connecting glyphs
-                                                if (/[ادذرزوةءأإآى]/.test(p1)) {
-                                                    return p1 + " ";
-                                                }
-                                                return p1;
-                                            });
-                                            sanitizedSentence = reversed.replace(/\s+/g, ' ').trim();
-                                        }
-
                                         var itemObject = {
                                             uid: structuralUidCounter++,
                                             text: sanitizedSentence + ".",
