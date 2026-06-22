@@ -404,6 +404,51 @@
             };
         }
 
+        // Helper logic to stitch broken Arabic letters back into cohesive continuous cursive tokens
+        function healArabicLetterSlices(rawStr) {
+            // Step A: Reverse individual characters to correct left-to-right extraction back to normal right-to-left
+            var turnedChars = rawStr.split('').reverse().join('');
+            
+            // Step B: Intelligently join isolated characters while respecting non-connecting letters
+            // Non-connecting letters in Arabic: ا, د, ذ, ر, ز, و, ة, ء
+            var nonConnectors = /[\u0627\u062F\u0630\u0631\u0632\u0648\u0629\u0621]/;
+            var words = turnedChars.split(/\s+/);
+            var parsedTokens = [];
+            var runningWordBuffer = "";
+
+            for (var i = 0; i < words.length; i++) {
+                var tok = words[i];
+                if (!tok) continue;
+
+                if (tok.length === 1 && /[\u0600-\u06FF]/.test(tok)) {
+                    if (runningWordBuffer === "") {
+                        runningWordBuffer = tok;
+                    } else {
+                        var lastCharOfBuffer = runningWordBuffer.slice(-1);
+                        // If previous letter was a non-connector, it must naturally create a visual break/space boundary
+                        if (nonConnectors.test(lastCharOfBuffer)) {
+                            parsedTokens.push(runningWordBuffer);
+                            runningWordBuffer = tok;
+                        } else {
+                            // Cursive link connection
+                            runningWordBuffer += tok;
+                        }
+                    }
+                } else {
+                    if (runningWordBuffer !== "") {
+                        parsedTokens.push(runningWordBuffer);
+                        runningWordBuffer = "";
+                    }
+                    parsedTokens.push(tok);
+                }
+            }
+            if (runningWordBuffer !== "") {
+                parsedTokens.push(runningWordBuffer);
+            }
+
+            return parsedTokens.join(" ");
+        }
+
         function handlePDFUpload(event) {
             var file = event.target.files[0];
             if (!file) return;
@@ -460,7 +505,6 @@
                         pdf.getPage(pageNum).then(function(page) {
                             return page.getTextContent().then(function(textContent) {
                                 
-                                // Group items by line proximity (using transform matrix Y coordinate)
                                 var linesMap = {};
                                 var hasArabic = false;
 
@@ -472,11 +516,8 @@
                                         hasArabic = true;
                                     }
 
-                                    // Use rounded Y coordinate to group items visually resting on the same line
                                     var yCoord = Math.round(item.transform[5]);
-                                    
-                                    // Find close lines (within 3px variance tolerance)
-                                    var foundKey = Object.keys(linesMap).find(k => Math.abs(parseFloat(k) - yCoord) <= 3);
+                                    var foundKey = Object.keys(linesMap).find(k => Math.abs(parseFloat(k) - yCoord) <= 4);
                                     if (foundKey) {
                                         linesMap[foundKey].push(item);
                                     } else {
@@ -484,40 +525,35 @@
                                     }
                                 }
 
-                                // Sort lines from top to bottom (descending Y coordinates)
                                 var sortedYKeys = Object.keys(linesMap).sort((a, b) => parseFloat(b) - parseFloat(a));
-                                
                                 var pageRawText = "";
 
                                 for (var k = 0; k < sortedYKeys.length; k++) {
                                     var lineItems = linesMap[sortedYKeys[k]];
-                                    
-                                    // Sort line items horizontally from left-to-right visually
                                     lineItems.sort((a, b) => a.transform[4] - b.transform[4]);
 
                                     var lineStrings = lineItems.map(item => item.str);
 
                                     if (hasArabic) {
-                                        // If Arabic text, reverse the extraction stream array of words/segments on this line
-                                        lineStrings.reverse();
-                                        pageRawText += " " + lineStrings.join(" ");
+                                        // Merge whole visual string for the line, then process its glyph sequence structure
+                                        var fullyMergedLineText = lineStrings.join(" ");
+                                        var correctedArabicLine = healArabicLetterSlices(fullyMergedLineText);
+                                        pageRawText += " " + correctedArabicLine;
                                     } else {
                                         pageRawText += " " + lineStrings.join(" ");
                                     }
                                 }
 
-                                // Handle Sentence Splitting smoothly
+                                // Structural sentence partition boundary rule mapping
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
-                                    
-                                    // Strip leading/trailing Arabic commas that get isolated during block re-ordering
                                     sanitizedSentence = sanitizedSentence.replace(/^[\u060C\s]+|[\u060C\s]+$/g, '');
 
-                                    if (sanitizedSentence.length > 6) {
+                                    if (sanitizedSentence.length > 5) {
                                         var itemObject = {
                                             uid: structuralUidCounter++,
-                                            text: hasArabic ? sanitizedSentence + "." : sanitizedSentence + ".",
+                                            text: sanitizedSentence + ".",
                                             page: pageNum
                                         };
                                         flashcardAssetsDeck.push(itemObject);
@@ -555,7 +591,6 @@
 
                 var activeCard = flashcardAssetsDeck[activeCardIndex];
                 
-                // Dynamically apply reading direction based on character content
                 if (/[\u0600-\u06FF]/.test(activeCard.text)) {
                     container.style.textAlign = 'right';
                     container.setAttribute('dir', 'rtl');
