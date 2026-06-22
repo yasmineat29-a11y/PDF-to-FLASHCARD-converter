@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flashcardit">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3067/3067390.png">
+    <link class="apple-touch-icon" rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3067/3067390.png">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js"></script>
     <style>
@@ -379,6 +379,7 @@
             putReq.onsuccess = function() {
                 document.getElementById('save-library-btn').style.display = 'none';
                 document.getElementById('clear-lib-btn').style.display = 'block';
+                document.getElementById('save-library-btn').innerText = "📥 Add to Library";
             };
         }
 
@@ -402,22 +403,6 @@
             db.transaction(["library"], "readwrite").objectStore("library").delete("active_deck").onsuccess = function() {
                 location.reload();
             };
-        }
-
-        // Global recovery engine: collapses split strings and preserves true spacing markers
-        function cleanAndLinkArabicGraphemes(rawTextLine) {
-            // Step 1: Detect and change unique non-standard spaces or tabs to standard spacer values
-            var standardizedSpace = rawTextLine.replace(/[\s\u200B-\u200D\uFEFF]+/g, ' ');
-            
-            // Step 2: Reverse character strings uniformly to swap structural layout paths back to RTL alignment
-            var baseReversedStr = standardizedSpace.split('').reverse().join('');
-            
-            // Step 3: Remove isolated spaces trapped between consecutive Arabic letter blocks
-            // This allows words like "ا ل ت ع ب ي ر" to fuse naturally into "التعبير"
-            var fusedArabicStr = baseReversedStr.replace(/([\u0600-\u06FF])\s+(?=[\u0600-\u06FF])/g, '$1');
-            
-            // Step 4: Keep authentic space divisions between separate Arabic words intact
-            return fusedArabicStr.trim();
         }
 
         function handlePDFUpload(event) {
@@ -475,14 +460,14 @@
                         
                         pdf.getPage(pageNum).then(function(page) {
                             return page.getTextContent().then(function(textContent) {
-                                
                                 var linesMap = {};
                                 var hasArabic = false;
 
+                                // Group structural tokens via Y bounding boxes defensively
                                 for (var i = 0; i < textContent.items.length; i++) {
                                     var item = textContent.items[i];
-                                    if (!item.str || item.str.trim() === '') continue;
-
+                                    if (!item || typeof item.str !== 'string' || item.str.trim() === '') continue;
+                                    
                                     if (/[\u0600-\u06FF]/.test(item.str)) {
                                         hasArabic = true;
                                     }
@@ -501,26 +486,36 @@
 
                                 for (var k = 0; k < sortedYKeys.length; k++) {
                                     var lineItems = linesMap[sortedYKeys[k]];
-                                    lineItems.sort((a, b) => a.transform[4] - b.transform[4]);
-
-                                    var lineStrings = lineItems.map(item => item.str);
-                                    var fullyMergedLineText = lineStrings.join(" ");
-
+                                    
+                                    // Handle reading directions securely based on script criteria
                                     if (hasArabic) {
-                                        var correctedArabicLine = cleanAndLinkArabicGraphemes(fullyMergedLineText);
-                                        pageRawText += " " + correctedArabicLine;
+                                        lineItems.sort((a, b) => b.transform[4] - a.transform[4]);
                                     } else {
-                                        pageRawText += " " + fullyMergedLineText;
+                                        lineItems.sort((a, b) => a.transform[4] - b.transform[4]);
                                     }
+
+                                    var lineStrings = lineItems.map(function(item) {
+                                        var segment = item.str || "";
+                                        if (hasArabic) {
+                                            if (segment.indexOf(" ") !== -1 && segment.replace(/\s+/g, "").length > 1) {
+                                                return segment;
+                                            }
+                                            if (/^[\u0600-\u06FF\s]+$/.test(segment) && segment.indexOf(" ") === -1) {
+                                                return segment.split('').reverse().join('');
+                                            }
+                                        }
+                                        return segment;
+                                    });
+
+                                    pageRawText += " " + lineStrings.join("");
                                 }
 
-                                // Structural sentence partition separation rules
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
-                                    var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
-                                    sanitizedSentence = sanitizedSentence.replace(/^[\u060C\s]+|[\u060C\s]+$/g, '');
+                                    var sanitizedSentence = rawSlices[j].replace(/\s+/g, ' ').trim();
+                                    sanitizedSentence = sanitizedSentence.replace(/^[\u060C\s،\.\-]+|[\u060C\s،\.\-]+$/g, '');
 
-                                    if (sanitizedSentence.length > 4) {
+                                    if (sanitizedSentence.length > 3) {
                                         var itemObject = {
                                             uid: structuralUidCounter++,
                                             text: sanitizedSentence + ".",
@@ -528,7 +523,7 @@
                                         };
                                         flashcardAssetsDeck.push(itemObject);
                                         originalAssetsOrder.push({...itemObject});
-                                        serializedDeckForDb.push(itemObject);
+                                        serializedDeckForDb.push(itemObject); 
                                     }
                                 }
                                 setTimeout(function() { processPage(pageNum + 1); }, 0);
@@ -561,6 +556,7 @@
 
                 var activeCard = flashcardAssetsDeck[activeCardIndex];
                 
+                // Align elements relative to RTL context matches natively
                 if (/[\u0600-\u06FF]/.test(activeCard.text)) {
                     container.style.textAlign = 'right';
                     container.setAttribute('dir', 'rtl');
