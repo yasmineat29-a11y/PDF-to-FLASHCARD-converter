@@ -132,6 +132,7 @@
             transform: translateY(0);
             opacity: 1;
             width: 100%;
+            unicode-bidi: isolate;
         }
 
         .card-text-content.changing {
@@ -509,6 +510,14 @@
                 }
 
                 var activeCard = flashcardAssetsDeck[activeCardIndex];
+                
+                // Detect Arabic script layout natively to flip visual text wrapper container orientation dynamically
+                if (/[\u0600-\u06FF]/.test(activeCard.text)) {
+                    container.style.textAlign = 'right';
+                } else {
+                    container.style.textAlign = 'start';
+                }
+
                 container.innerHTML = "<br><br>" + activeCard.text;
 
                 document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
@@ -557,7 +566,7 @@
         }, { passive: true });
 
         function handleSwipeGesture() {
-            var swipeThresholdDistance = 100; // Increased threshold to significantly reduce swipe sensitivity
+            var swipeThresholdDistance = 100; // Threshold remains at 100 to avoid accidental card flips
             var totalTraveledDistance = touchStartX - touchEndX;
 
             if (Math.abs(totalTraveledDistance) > swipeThresholdDistance) {
