@@ -462,8 +462,25 @@
                         pdf.getPage(pageNum).then(function(page) {
                             return page.getTextContent().then(function(textContent) {
                                 var pageRawText = "";
+                                
+                                // 1. Pass: Scan the page structure to check if Arabic characters are present
+                                var hasArabic = false;
                                 for (var i = 0; i < textContent.items.length; i++) {
-                                    pageRawText += textContent.items[i].str + " ";
+                                    if (/[\u0600-\u06FF]/.test(textContent.items[i].str)) {
+                                        hasArabic = true;
+                                        break;
+                                    }
+                                }
+
+                                // 2. Clean data streaming: Recombine characters safely if language check evaluates true
+                                for (var i = 0; i < textContent.items.length; i++) {
+                                    var chunk = textContent.items[i].str;
+                                    if (hasArabic) {
+                                        // Mimics an integrated Word conversion by avoiding programmatic spacing on layouts
+                                        pageRawText += chunk;
+                                    } else {
+                                        pageRawText += chunk + " ";
+                                    }
                                 }
 
                                 var rawSlices = pageRawText.split('.');
@@ -511,7 +528,7 @@
 
                 var activeCard = flashcardAssetsDeck[activeCardIndex];
                 
-                // Detect Arabic script layout natively to flip visual text wrapper container orientation dynamically
+                // Keep Right-To-Left container flow accurate for reading direction
                 if (/[\u0600-\u06FF]/.test(activeCard.text)) {
                     container.style.textAlign = 'right';
                 } else {
@@ -566,39 +583,3 @@
         }, { passive: true });
 
         function handleSwipeGesture() {
-            var swipeThresholdDistance = 100; // Threshold remains at 100 to avoid accidental card flips
-            var totalTraveledDistance = touchStartX - touchEndX;
-
-            if (Math.abs(totalTraveledDistance) > swipeThresholdDistance) {
-                if (totalTraveledDistance > 0) {
-                    // Swiped Left -> Load Next Flashcard
-                    navigateDeck(1);
-                } else {
-                    // Swiped Right -> Load Previous Flashcard
-                    navigateDeck(-1);
-                }
-            }
-        }
-
-        function goToNextInStructuralOrder() {
-            if (flashcardAssetsDeck.length === 0) return;
-
-            var currentCard = flashcardAssetsDeck[activeCardIndex];
-            var targetUid = currentCard.uid + 1;
-
-            var absoluteNextCard = originalAssetsOrder.find(item => item.uid === targetUid);
-            if (!absoluteNextCard) return;
-
-            var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
-            var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
-            var filteredRemaining = remainingItems.filter(item => item.uid !== targetUid);
-
-            flashcardAssetsDeck = historyItems.concat([absoluteNextCard], filteredRemaining);
-            activeCardIndex += 1;
-
-            renderActiveCard();
-            saveLibraryProgress();
-        }
-    </script>
-</body>
-</html>
