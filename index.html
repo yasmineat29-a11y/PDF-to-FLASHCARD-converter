@@ -462,7 +462,7 @@
                             return page.getTextContent().then(function(textContent) {
                                 var linesMap = {};
 
-                                // Group structural tokens via Y bounding boxes defensively
+                                // Group tokens cleanly into explicit visual lines via Y thresholds
                                 for (var i = 0; i < textContent.items.length; i++) {
                                     var item = textContent.items[i];
                                     if (!item || typeof item.str !== 'string' || item.str.trim() === '') continue;
@@ -482,17 +482,22 @@
                                 for (var k = 0; k < sortedYKeys.length; k++) {
                                     var lineItems = linesMap[sortedYKeys[k]];
                                     
-                                    // Sort items across the X-axis from left to right (natural text stream order)
+                                    // Order items horizontally across the physical visual line array
                                     lineItems.sort((a, b) => a.transform[4] - b.transform[4]);
 
-                                    var lineStrings = lineItems.map(function(item) {
-                                        return item.str || "";
-                                    });
+                                    var lineText = lineItems.map(item => item.str || "").join(" ");
+                                    
+                                    // Check if the current extracted string fragment is mapped in reverse visual storage
+                                    if (/[\u0600-\u06FF]/.test(lineText)) {
+                                        var words = lineText.trim().split(/\s+/);
+                                        // Reverse the word groupings sequence safely without splitting explicit letters
+                                        lineText = words.reverse().join(" ");
+                                    }
 
-                                    // Crucial: Join words with spaces so sentences don't smash together
-                                    pageRawText += " " + lineStrings.join(" ");
+                                    pageRawText += " " + lineText;
                                 }
 
+                                // Break down clean aggregated lines directly into flashcard content slices
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/\s+/g, ' ').trim();
@@ -539,7 +544,6 @@
 
                 var activeCard = flashcardAssetsDeck[activeCardIndex];
                 
-                // Natively check and flip reading direction alignment
                 if (/[\u0600-\u06FF]/.test(activeCard.text)) {
                     container.style.textAlign = 'right';
                     container.setAttribute('dir', 'rtl');
