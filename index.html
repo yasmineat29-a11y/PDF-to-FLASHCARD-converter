@@ -404,49 +404,20 @@
             };
         }
 
-        // Helper logic to stitch broken Arabic letters back into cohesive continuous cursive tokens
-        function healArabicLetterSlices(rawStr) {
-            // Step A: Reverse individual characters to correct left-to-right extraction back to normal right-to-left
-            var turnedChars = rawStr.split('').reverse().join('');
+        // Global recovery engine: collapses split strings and preserves true spacing markers
+        function cleanAndLinkArabicGraphemes(rawTextLine) {
+            // Step 1: Detect and change unique non-standard spaces or tabs to standard spacer values
+            var standardizedSpace = rawTextLine.replace(/[\s\u200B-\u200D\uFEFF]+/g, ' ');
             
-            // Step B: Intelligently join isolated characters while respecting non-connecting letters
-            // Non-connecting letters in Arabic: ا, د, ذ, ر, ز, و, ة, ء
-            var nonConnectors = /[\u0627\u062F\u0630\u0631\u0632\u0648\u0629\u0621]/;
-            var words = turnedChars.split(/\s+/);
-            var parsedTokens = [];
-            var runningWordBuffer = "";
-
-            for (var i = 0; i < words.length; i++) {
-                var tok = words[i];
-                if (!tok) continue;
-
-                if (tok.length === 1 && /[\u0600-\u06FF]/.test(tok)) {
-                    if (runningWordBuffer === "") {
-                        runningWordBuffer = tok;
-                    } else {
-                        var lastCharOfBuffer = runningWordBuffer.slice(-1);
-                        // If previous letter was a non-connector, it must naturally create a visual break/space boundary
-                        if (nonConnectors.test(lastCharOfBuffer)) {
-                            parsedTokens.push(runningWordBuffer);
-                            runningWordBuffer = tok;
-                        } else {
-                            // Cursive link connection
-                            runningWordBuffer += tok;
-                        }
-                    }
-                } else {
-                    if (runningWordBuffer !== "") {
-                        parsedTokens.push(runningWordBuffer);
-                        runningWordBuffer = "";
-                    }
-                    parsedTokens.push(tok);
-                }
-            }
-            if (runningWordBuffer !== "") {
-                parsedTokens.push(runningWordBuffer);
-            }
-
-            return parsedTokens.join(" ");
+            // Step 2: Reverse character strings uniformly to swap structural layout paths back to RTL alignment
+            var baseReversedStr = standardizedSpace.split('').reverse().join('');
+            
+            // Step 3: Remove isolated spaces trapped between consecutive Arabic letter blocks
+            // This allows words like "ا ل ت ع ب ي ر" to fuse naturally into "التعبير"
+            var fusedArabicStr = baseReversedStr.replace(/([\u0600-\u06FF])\s+(?=[\u0600-\u06FF])/g, '$1');
+            
+            // Step 4: Keep authentic space divisions between separate Arabic words intact
+            return fusedArabicStr.trim();
         }
 
         function handlePDFUpload(event) {
@@ -517,7 +488,7 @@
                                     }
 
                                     var yCoord = Math.round(item.transform[5]);
-                                    var foundKey = Object.keys(linesMap).find(k => Math.abs(parseFloat(k) - yCoord) <= 4);
+                                    var foundKey = Object.keys(linesMap).find(k => Math.abs(parseFloat(k) - yCoord) <= 5);
                                     if (foundKey) {
                                         linesMap[foundKey].push(item);
                                     } else {
@@ -533,24 +504,23 @@
                                     lineItems.sort((a, b) => a.transform[4] - b.transform[4]);
 
                                     var lineStrings = lineItems.map(item => item.str);
+                                    var fullyMergedLineText = lineStrings.join(" ");
 
                                     if (hasArabic) {
-                                        // Merge whole visual string for the line, then process its glyph sequence structure
-                                        var fullyMergedLineText = lineStrings.join(" ");
-                                        var correctedArabicLine = healArabicLetterSlices(fullyMergedLineText);
+                                        var correctedArabicLine = cleanAndLinkArabicGraphemes(fullyMergedLineText);
                                         pageRawText += " " + correctedArabicLine;
                                     } else {
-                                        pageRawText += " " + lineStrings.join(" ");
+                                        pageRawText += " " + fullyMergedLineText;
                                     }
                                 }
 
-                                // Structural sentence partition boundary rule mapping
+                                // Structural sentence partition separation rules
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
                                     sanitizedSentence = sanitizedSentence.replace(/^[\u060C\s]+|[\u060C\s]+$/g, '');
 
-                                    if (sanitizedSentence.length > 5) {
+                                    if (sanitizedSentence.length > 4) {
                                         var itemObject = {
                                             uid: structuralUidCounter++,
                                             text: sanitizedSentence + ".",
