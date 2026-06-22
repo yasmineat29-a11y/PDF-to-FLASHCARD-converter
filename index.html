@@ -17,7 +17,7 @@
         body {
             margin: 0;
             padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #1a1613;
             color: #e4dcd3;
             display: flex;
@@ -101,7 +101,7 @@
             display: flex;
             flex-direction: column;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-            touch-action: pan-y; 
+            touch-action: pan-y; /* Allows vertical scrolling inside cards while intercepting horizontal gestures */
         }
 
         .card-text-wrapper {
@@ -116,23 +116,21 @@
             box-sizing: border-box;
             padding: 28px;
             padding-top: 48px;
-            text-align: start;
+            text-align: center;
             -webkit-overflow-scrolling: touch;
             scroll-behavior: smooth;
         }
 
         .card-text-content {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            font-size: 24px;
-            line-height: 1.7;
+            font-family: Georgia, Cambria, "Times New Roman", Times, serif; 
+            font-size: 21px;
+            line-height: 1.65;
             color: #110f0e;
             word-wrap: break-word;
             max-width: 100%;
             transition: opacity 0.18s ease, transform 0.18s ease;
             transform: translateY(0);
             opacity: 1;
-            width: 100%;
-            unicode-bidi: isolate;
         }
 
         .card-text-content.changing {
@@ -266,7 +264,7 @@
 
         <div class="flashcard-view" id="card-view" style="display: none;">
             <div class="card-text-wrapper">
-                <div class="card-text-content" id="text-container" dir="auto"></div>
+                <div class="card-text-content" id="text-container"></div>
             </div>
             <div class="card-metadata-footer">
                 <span id="page-stamp">Source: Page --</span>
@@ -463,7 +461,7 @@
                             return page.getTextContent().then(function(textContent) {
                                 var pageRawText = "";
                                 
-                                // 1. Pass: Scan the page structure to check if Arabic characters are present
+                                // Step 1: Detect language presence before extracting page data
                                 var hasArabic = false;
                                 for (var i = 0; i < textContent.items.length; i++) {
                                     if (/[\u0600-\u06FF]/.test(textContent.items[i].str)) {
@@ -472,11 +470,11 @@
                                     }
                                 }
 
-                                // 2. Clean data streaming: Recombine characters safely if language check evaluates true
+                                // Step 2: Combine strings accordingly
                                 for (var i = 0; i < textContent.items.length; i++) {
                                     var chunk = textContent.items[i].str;
                                     if (hasArabic) {
-                                        // Mimics an integrated Word conversion by avoiding programmatic spacing on layouts
+                                        // Mimics Word extraction format behavior by copying elements without visual space mutations
                                         pageRawText += chunk;
                                     } else {
                                         pageRawText += chunk + " ";
@@ -486,7 +484,6 @@
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
-                                    
                                     if (sanitizedSentence.length > 6) {
                                         var itemObject = {
                                             uid: structuralUidCounter++,
@@ -528,11 +525,13 @@
 
                 var activeCard = flashcardAssetsDeck[activeCardIndex];
                 
-                // Keep Right-To-Left container flow accurate for reading direction
+                // Keep structural script orientation matching the layout context
                 if (/[\u0600-\u06FF]/.test(activeCard.text)) {
                     container.style.textAlign = 'right';
+                    container.setAttribute('dir', 'rtl');
                 } else {
-                    container.style.textAlign = 'start';
+                    container.style.textAlign = 'center';
+                    container.setAttribute('dir', 'ltr');
                 }
 
                 container.innerHTML = "<br><br>" + activeCard.text;
@@ -583,3 +582,39 @@
         }, { passive: true });
 
         function handleSwipeGesture() {
+            var swipeThresholdDistance = 30; // Min pixels traveled to trigger card change
+            var totalTraveledDistance = touchStartX - touchEndX;
+
+            if (Math.abs(totalTraveledDistance) > swipeThresholdDistance) {
+                if (totalTraveledDistance > 0) {
+                    // Swiped Left -> Load Next Flashcard
+                    navigateDeck(1);
+                } else {
+                    // Swiped Right -> Load Previous Flashcard
+                    navigateDeck(-1);
+                }
+            }
+        }
+
+        function goToNextInStructuralOrder() {
+            if (flashcardAssetsDeck.length === 0) return;
+
+            var currentCard = flashcardAssetsDeck[activeCardIndex];
+            var targetUid = currentCard.uid + 1;
+
+            var absoluteNextCard = originalAssetsOrder.find(item => item.uid === targetUid);
+            if (!absoluteNextCard) return;
+
+            var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
+            var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
+            var filteredRemaining = remainingItems.filter(item => item.uid !== targetUid);
+
+            flashcardAssetsDeck = historyItems.concat([absoluteNextCard], filteredRemaining);
+            activeCardIndex += 1;
+
+            renderActiveCard();
+            saveLibraryProgress();
+        }
+    </script>
+</body>
+</html>
