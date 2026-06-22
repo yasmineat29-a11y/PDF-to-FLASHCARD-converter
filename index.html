@@ -116,13 +116,13 @@
             box-sizing: border-box;
             padding: 28px;
             padding-top: 48px;
-            text-align: center;
+            text-align: start;
             -webkit-overflow-scrolling: touch;
             scroll-behavior: smooth;
         }
 
         .card-text-content {
-            font-family: Georgia, Cambria, "Times New Roman", Times, "Segoe UI Arabic", Tahoma, serif; 
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, Georgia, Cambria, "Times New Roman", Times, serif; 
             font-size: 21px;
             line-height: 1.65;
             color: #110f0e;
@@ -263,8 +263,8 @@
         <button class="btn-save-lib" id="save-library-btn" onclick="commitDeckToIndexedDB()">📥 Add to Library</button>
 
         <div class="flashcard-view" id="card-view" style="display: none;">
-            <div class="card-text-wrapper" id="card-wrapper-element">
-                <div class="card-text-content" id="text-container"></div>
+            <div class="card-text-wrapper">
+                <div class="card-text-content" id="text-container" dir="auto"></div>
             </div>
             <div class="card-metadata-footer">
                 <span id="page-stamp">Source: Page --</span>
@@ -464,8 +464,7 @@
                                     pageRawText += textContent.items[i].str + " ";
                                 }
 
-                                // Splits on both regular standard periods and Arabic periods (۔ or ٫ or .)
-                                var rawSlices = pageRawText.split(/[\.\u06d4]/);
+                                var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
                                     if (sanitizedSentence.length > 6) {
@@ -498,7 +497,6 @@
 
         function renderActiveCard() {
             var container = document.getElementById('text-container');
-            var wrapper = document.getElementById('card-wrapper-element');
             container.classList.add('changing');
             
             setTimeout(function() {
@@ -510,11 +508,6 @@
 
                 var activeCard = flashcardAssetsDeck[activeCardIndex];
                 container.innerHTML = "<br><br>" + activeCard.text;
-
-                // Dynamically handles reading direction for seamless compatibility between RTL (Arabic) and LTR languages (English, Spanish)
-                if (wrapper) {
-                    wrapper.setAttribute('dir', 'auto');
-                }
 
                 document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
                 document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
@@ -562,7 +555,7 @@
         }, { passive: true });
 
         function handleSwipeGesture() {
-            var swipeThresholdDistance = 100; // Increased from 30 to 100 to lower swipe sensitivity significantly
+            var swipeThresholdDistance = 100; // Increased threshold to significantly reduce swipe sensitivity
             var totalTraveledDistance = touchStartX - touchEndX;
 
             if (Math.abs(totalTraveledDistance) > swipeThresholdDistance) {
