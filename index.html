@@ -101,7 +101,7 @@
             display: flex;
             flex-direction: column;
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-            touch-action: pan-y; /* Allows vertical scrolling inside cards while intercepting horizontal gestures */
+            touch-action: pan-y;
         }
 
         .card-text-wrapper {
@@ -459,40 +459,65 @@
                         
                         pdf.getPage(pageNum).then(function(page) {
                             return page.getTextContent().then(function(textContent) {
-                                var pageRawText = "";
                                 
-                                // Detect if there are any Arabic characters present on this page
+                                // Group items by line proximity (using transform matrix Y coordinate)
+                                var linesMap = {};
                                 var hasArabic = false;
+
                                 for (var i = 0; i < textContent.items.length; i++) {
-                                    if (/[\u0600-\u06FF]/.test(textContent.items[i].str)) {
+                                    var item = textContent.items[i];
+                                    if (!item.str || item.str.trim() === '') continue;
+
+                                    if (/[\u0600-\u06FF]/.test(item.str)) {
                                         hasArabic = true;
-                                        break;
                                     }
-                                }
 
-                                // Accumulate text according to character block features
-                                for (var i = 0; i < textContent.items.length; i++) {
-                                    var sliceString = textContent.items[i].str;
-                                    if (hasArabic) {
-                                        pageRawText += sliceString;
+                                    // Use rounded Y coordinate to group items visually resting on the same line
+                                    var yCoord = Math.round(item.transform[5]);
+                                    
+                                    // Find close lines (within 3px variance tolerance)
+                                    var foundKey = Object.keys(linesMap).find(k => Math.abs(parseFloat(k) - yCoord) <= 3);
+                                    if (foundKey) {
+                                        linesMap[foundKey].push(item);
                                     } else {
-                                        pageRawText += sliceString + " ";
+                                        linesMap[yCoord] = [item];
                                     }
                                 }
 
+                                // Sort lines from top to bottom (descending Y coordinates)
+                                var sortedYKeys = Object.keys(linesMap).sort((a, b) => parseFloat(b) - parseFloat(a));
+                                
+                                var pageRawText = "";
+
+                                for (var k = 0; k < sortedYKeys.length; k++) {
+                                    var lineItems = linesMap[sortedYKeys[k]];
+                                    
+                                    // Sort line items horizontally from left-to-right visually
+                                    lineItems.sort((a, b) => a.transform[4] - b.transform[4]);
+
+                                    var lineStrings = lineItems.map(item => item.str);
+
+                                    if (hasArabic) {
+                                        // If Arabic text, reverse the extraction stream array of words/segments on this line
+                                        lineStrings.reverse();
+                                        pageRawText += " " + lineStrings.join(" ");
+                                    } else {
+                                        pageRawText += " " + lineStrings.join(" ");
+                                    }
+                                }
+
+                                // Handle Sentence Splitting smoothly
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/^\s+|\s+$/g, '');
-                                    if (sanitizedSentence.length > 6) {
-                                        
-                                        // If Arabic text stream was decoded, flip backwards layout strings to true direction
-                                        if (hasArabic) {
-                                            sanitizedSentence = sanitizedSentence.split('').reverse().join('');
-                                        }
+                                    
+                                    // Strip leading/trailing Arabic commas that get isolated during block re-ordering
+                                    sanitizedSentence = sanitizedSentence.replace(/^[\u060C\s]+|[\u060C\s]+$/g, '');
 
+                                    if (sanitizedSentence.length > 6) {
                                         var itemObject = {
                                             uid: structuralUidCounter++,
-                                            text: hasArabic ? "." + sanitizedSentence : sanitizedSentence + ".",
+                                            text: hasArabic ? sanitizedSentence + "." : sanitizedSentence + ".",
                                             page: pageNum
                                         };
                                         flashcardAssetsDeck.push(itemObject);
@@ -530,7 +555,7 @@
 
                 var activeCard = flashcardAssetsDeck[activeCardIndex];
                 
-                // Dynamically balance textual orientation layouts according to unicode spectrum
+                // Dynamically apply reading direction based on character content
                 if (/[\u0600-\u06FF]/.test(activeCard.text)) {
                     container.style.textAlign = 'right';
                     container.setAttribute('dir', 'rtl');
@@ -587,15 +612,13 @@
         }, { passive: true });
 
         function handleSwipeGesture() {
-            var swipeThresholdDistance = 30; // Min pixels traveled to trigger card change
+            var swipeThresholdDistance = 30; 
             var totalTraveledDistance = touchStartX - touchEndX;
 
             if (Math.abs(totalTraveledDistance) > swipeThresholdDistance) {
                 if (totalTraveledDistance > 0) {
-                    // Swiped Left -> Load Next Flashcard
                     navigateDeck(1);
                 } else {
-                    // Swiped Right -> Load Previous Flashcard
                     navigateDeck(-1);
                 }
             }
