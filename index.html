@@ -485,19 +485,52 @@
                                     // Order items horizontally across the physical visual line array
                                     lineItems.sort((a, b) => a.transform[4] - b.transform[4]);
 
-                                    var lineText = lineItems.map(item => item.str || "").join(" ");
-                                    
-                                    // Check if the current extracted string fragment is mapped in reverse visual storage
+                                    // --- CHARACTER COMBINING LOGIC ENGINE FOR FRAGMENTED ARABIC PDFs ---
+                                    let wordsArray = [];
+                                    let currentWord = "";
+                                    let lastXEnd = -1;
+
+                                    for (let i = 0; i < lineItems.length; i++) {
+                                        let item = lineItems[i];
+                                        let textStr = item.str || "";
+                                        let itemXStart = item.transform[4];
+                                        let itemWidth = item.width || 0;
+
+                                        if (textStr === " " || textStr.trim() === "") {
+                                            if (currentWord.length > 0) {
+                                                wordsArray.push(currentWord);
+                                                currentWord = "";
+                                            }
+                                            continue;
+                                        }
+
+                                        // If visual distance exceeds threshold width, append current string fragment as word boundary
+                                        if (lastXEnd !== -1 && Math.abs(itemXStart - lastXEnd) > 3.5) {
+                                            if (currentWord.length > 0) {
+                                                wordsArray.push(currentWord);
+                                                currentWord = "";
+                                            }
+                                        }
+
+                                        currentWord += textStr;
+                                        lastXEnd = itemXStart + itemWidth;
+                                    }
+                                    if (currentWord.length > 0) {
+                                        wordsArray.push(currentWord);
+                                    }
+
+                                    let lineText = wordsArray.join(" ");
+
+                                    // If Arabic characters are discovered, reverse the assembled words to counteract visual alignment encoding streams
                                     if (/[\u0600-\u06FF]/.test(lineText)) {
-                                        var words = lineText.trim().split(/\s+/);
-                                        // Reverse the word groupings sequence safely without splitting explicit letters
-                                        lineText = words.reverse().join(" ");
+                                        let cleanWords = lineText.trim().split(/\s+/);
+                                        lineText = cleanWords.reverse().join(" ");
                                     }
 
                                     pageRawText += " " + lineText;
                                 }
 
-                                // Break down clean aggregated lines directly into flashcard content slices
+                                // Break down clean aggregated lines directly into flashcard content slices at periods
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/\s+/g, ' ').trim();
