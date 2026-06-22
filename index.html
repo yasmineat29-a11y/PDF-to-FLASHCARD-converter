@@ -13,6 +13,8 @@
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3067/3067390.png">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
     <style>
         body {
             margin: 0;
@@ -250,14 +252,14 @@
 
     <div id="app-workspace">
         <div class="upload-container-row" id="top-upload-box">
-            <label class="file-upload-label" for="file-input" id="upload-label-text">📁 Select PDF File</label>
-            <input type="file" id="file-input" accept="application/pdf">
+            <label class="file-upload-label" for="file-input" id="upload-label-text">📁 Select PDF or Word File</label>
+            <input type="file" id="file-input" accept="application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document">
             <button class="btn-danger" id="clear-lib-btn" style="display:none;" onclick="clearSavedLibrary()">Reset Deck</button>
         </div>
 
         <div id="status" class="status-text">
-            Tap the button above to upload a textbook or notes PDF.<br><br>
-            <span style="font-size: 13px; font-weight: normal; color: #8c7f70;">Extracts raw textbook text and partitions cleanly at every dot.</span>
+            Tap the button above to upload a textbook PDF or Word (.docx) document.<br><br>
+            <span style="font-size: 13px; font-weight: normal; color: #8c7f70;">Extracts text seamlessly and breaks sentences clean at every period.</span>
         </div>
 
         <button class="btn-save-lib" id="save-library-btn" onclick="commitDeckToIndexedDB()">📥 Add to Library</button>
@@ -267,7 +269,7 @@
                 <div class="card-text-content" id="text-container"></div>
             </div>
             <div class="card-metadata-footer">
-                <span id="page-stamp">Source: Page --</span>
+                <span id="page-stamp">Source: Document Element --</span>
                 <span id="counter-stamp">0 / 0</span>
             </div>
         </div>
@@ -281,7 +283,7 @@
     </div>
 
     <script>
-        // --- 1. ENTRY POPUP SYSTEM LOGIC ---
+        // --- 1. POPUP / SYSTEM LOGIC ---
         let deferredInstallPrompt = null;
 
         if ('serviceWorker' in navigator) {
@@ -306,8 +308,7 @@
             }
         }, { once: true });
 
-
-        // --- 2. FIXED STABLE PDF EXTRACTION WORKER CONTROLLER ---
+        // Setup PDF.js
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js';
 
@@ -332,7 +333,7 @@
             checkSavedLibraryProgress();
         };
 
-        document.getElementById('file-input').addEventListener('change', handlePDFUpload);
+        document.getElementById('file-input').addEventListener('change', handleFileUpload);
 
         function checkSavedLibraryProgress() {
             if (!db) return;
@@ -354,7 +355,7 @@
                     document.getElementById('navigation-box').style.display = 'flex';
                     document.getElementById('clear-lib-btn').style.display = 'block';
                     document.getElementById('save-library-btn').style.display = 'none';
-                    document.getElementById('upload-label-text').innerText = "📁 Change PDF";
+                    document.getElementById('upload-label-text').innerText = "📁 Change File";
                     
                     renderActiveCard();
                 }
@@ -405,7 +406,8 @@
             };
         }
 
-        function handlePDFUpload(event) {
+        // --- 2. ROUTER FOR DOCX OR PDF DISPATCHING ---
+        function handleFileUpload(event) {
             var file = event.target.files[0];
             if (!file) return;
 
@@ -414,7 +416,7 @@
             
             uploadLabel.innerText = "⏳ Extracting...";
             statusLabel.style.display = 'block';
-            statusLabel.innerHTML = "<strong>Reading Text Stream...</strong><br>Converting structural document sentences directly into flashcards.";
+            statusLabel.innerHTML = "<strong>Reading document stream...</strong>";
             
             document.getElementById('card-view').style.display = 'none';
             document.getElementById('navigation-box').style.display = 'none';
@@ -426,7 +428,62 @@
             serializedDeckForDb = [];
             activeCardIndex = 0;
 
+            if (file.name.endsWith('.docx')) {
+                processDocx(file);
+            } else {
+                processPdf(file);
+            }
+        }
+
+        // --- 3. MAMMOTH WORD DOCUMENT PARSER (.docx) ---
+        function processDocx(file) {
+            var statusLabel = document.getElementById('status');
+            var uploadLabel = document.getElementById('upload-label-text');
             var fileReader = new FileReader();
+
+            fileReader.onload = function(loadEvent) {
+                var arrayBuffer = loadEvent.target.result;
+                
+                mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                .then(function(result) {
+                    var text = result.value; 
+                    var rawSlices = text.split('.');
+                    var structuralUidCounter = 0;
+
+                    for (var j = 0; j < rawSlices.length; j++) {
+                        var sanitizedSentence = rawSlices[j].replace(/\s+/g, ' ').trim();
+                        // Strip residual punctuation wrappers
+                        sanitizedSentence = sanitizedSentence.replace(/^[\u060C\s،\.\-]+|[\u060C\s،\.\-]+$/g, '');
+
+                        if (sanitizedSentence.length > 3) {
+                            var itemObject = {
+                                uid: structuralUidCounter++,
+                                text: sanitizedSentence + ".",
+                                page: "Doc Paragraph"
+                            };
+                            flashcardAssetsDeck.push(itemObject);
+                            originalAssetsOrder.push({...itemObject});
+                            serializedDeckForDb.push(itemObject); 
+                        }
+                    }
+
+                    finalizeExtraction();
+                })
+                .catch(function(err) {
+                    console.error(err);
+                    uploadLabel.innerText = "📁 Select PDF or Word File";
+                    statusLabel.innerHTML = "<strong>Error processing Word document matrix.</strong>";
+                });
+            };
+            fileReader.readAsArrayBuffer(file);
+        }
+
+        // --- 4. ADVANCED FRAGMENT-COMBINING PDF PARSER (.pdf) ---
+        function processPdf(file) {
+            var statusLabel = document.getElementById('status');
+            var uploadLabel = document.getElementById('upload-label-text');
+            var fileReader = new FileReader();
+
             fileReader.onload = function() {
                 var typedarray = new Uint8Array(this.result);
                 
@@ -436,33 +493,16 @@
                     
                     function processPage(pageNum) {
                         if (pageNum > totalPages) {
-                            if (flashcardAssetsDeck.length === 0) {
-                                uploadLabel.innerText = "📁 Select PDF File";
-                                statusLabel.innerHTML = "<strong>No selectable text matrix discovered.</strong>";
-                                return;
-                            }
-
-                            uploadLabel.innerText = "📁 Change PDF";
-                            statusLabel.style.display = 'none';
-                            
-                            document.getElementById('card-view').style.display = 'flex';
-                            document.getElementById('navigation-box').style.display = 'flex';
-                            
-                            var saveBtn = document.getElementById('save-library-btn');
-                            saveBtn.innerText = "📥 Add to Library";
-                            saveBtn.style.display = 'block';
-
-                            renderActiveCard();
+                            finalizeExtraction();
                             return;
                         }
 
-                        statusLabel.innerHTML = "<strong>Extracting Sentences: Page " + pageNum + " / " + totalPages + "</strong>";
+                        statusLabel.innerHTML = "<strong>Extracting: Page " + pageNum + " / " + totalPages + "</strong>";
                         
                         pdf.getPage(pageNum).then(function(page) {
                             return page.getTextContent().then(function(textContent) {
                                 var linesMap = {};
 
-                                // Group tokens cleanly into explicit visual lines via Y thresholds
                                 for (var i = 0; i < textContent.items.length; i++) {
                                     var item = textContent.items[i];
                                     if (!item || typeof item.str !== 'string' || item.str.trim() === '') continue;
@@ -481,11 +521,8 @@
 
                                 for (var k = 0; k < sortedYKeys.length; k++) {
                                     var lineItems = linesMap[sortedYKeys[k]];
-                                    
-                                    // Order items horizontally across the physical visual line array
                                     lineItems.sort((a, b) => a.transform[4] - b.transform[4]);
 
-                                    // --- CHARACTER COMBINING LOGIC ENGINE FOR FRAGMENTED ARABIC PDFs ---
                                     let wordsArray = [];
                                     let currentWord = "";
                                     let lastXEnd = -1;
@@ -504,7 +541,6 @@
                                             continue;
                                         }
 
-                                        // If visual distance exceeds threshold width, append current string fragment as word boundary
                                         if (lastXEnd !== -1 && Math.abs(itemXStart - lastXEnd) > 3.5) {
                                             if (currentWord.length > 0) {
                                                 wordsArray.push(currentWord);
@@ -521,7 +557,6 @@
 
                                     let lineText = wordsArray.join(" ");
 
-                                    // If Arabic characters are discovered, reverse the assembled words to counteract visual alignment encoding streams
                                     if (/[\u0600-\u06FF]/.test(lineText)) {
                                         let cleanWords = lineText.trim().split(/\s+/);
                                         lineText = cleanWords.reverse().join(" ");
@@ -530,7 +565,6 @@
                                     pageRawText += " " + lineText;
                                 }
 
-                                // Break down clean aggregated lines directly into flashcard content slices at periods
                                 var rawSlices = pageRawText.split('.');
                                 for (var j = 0; j < rawSlices.length; j++) {
                                     var sanitizedSentence = rawSlices[j].replace(/\s+/g, ' ').trim();
@@ -540,7 +574,7 @@
                                         var itemObject = {
                                             uid: structuralUidCounter++,
                                             text: sanitizedSentence + ".",
-                                            page: pageNum
+                                            page: "Page " + pageNum
                                         };
                                         flashcardAssetsDeck.push(itemObject);
                                         originalAssetsOrder.push({...itemObject});
@@ -557,11 +591,35 @@
 
                 }).catch(function(error) {
                     console.error(error);
-                    uploadLabel.innerText = "📁 Select PDF File";
+                    uploadLabel.innerText = "📁 Select PDF or Word File";
                     statusLabel.innerHTML = "<strong>File layout processing exception encountered.</strong>";
                 });
             };
             fileReader.readAsArrayBuffer(file);
+        }
+
+        // --- 5. INTERFACE FINALIZATION ---
+        function finalizeExtraction() {
+            var statusLabel = document.getElementById('status');
+            var uploadLabel = document.getElementById('upload-label-text');
+
+            if (flashcardAssetsDeck.length === 0) {
+                uploadLabel.innerText = "📁 Select PDF or Word File";
+                statusLabel.innerHTML = "<strong>No selectable text matrix discovered.</strong>";
+                return;
+            }
+
+            uploadLabel.innerText = "📁 Change File";
+            statusLabel.style.display = 'none';
+            
+            document.getElementById('card-view').style.display = 'flex';
+            document.getElementById('navigation-box').style.display = 'flex';
+            
+            var saveBtn = document.getElementById('save-library-btn');
+            saveBtn.innerText = "📥 Add to Library";
+            saveBtn.style.display = 'block';
+
+            renderActiveCard();
         }
 
         function renderActiveCard() {
@@ -587,7 +645,7 @@
 
                 container.innerHTML = "<br><br>" + activeCard.text;
 
-                document.getElementById('page-stamp').innerText = "Source: Page " + activeCard.page;
+                document.getElementById('page-stamp').innerText = "Source: " + activeCard.page;
                 document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
                 
                 toggleNextOrderedButtonVisibility();
@@ -618,7 +676,7 @@
             saveLibraryProgress();
         }
 
-        // --- 3. HARDWARE GESTURE RECOGNITION (SWIPE LEFT & RIGHT) ---
+        // --- 6. SWIPE GESTURES ---
         var touchStartX = 0;
         var touchEndX = 0;
         var cardViewElement = document.getElementById('card-view');
