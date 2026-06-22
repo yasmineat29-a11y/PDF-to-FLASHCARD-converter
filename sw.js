@@ -1,8 +1,9 @@
-const CACHE_NAME = 'flashcardit-cache-v2';
+const CACHE_NAME = 'flashcardit-cache-v3'; // Changed v2 to v3
 const ASSETS_TO_CACHE = [
   './index.html',
   './manifest.json',
-  './sw.js'
+  './sw.js',
+  'https://cdn-icons-png.flaticon.com/512/2702/2702134.png' // Added your new icon to cache
 ];
 
 self.addEventListener('install', (e) => {
@@ -29,8 +30,9 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   e.respondWith(
-    fetch(e.request).catch(() => {
-      return caches.match(e.request) || new Response("Offline Mode Activated");
+    caches.match(e.request).then((cachedResponse) => {
+      // Prioritize cache for speed, fallback to network
+      return cachedResponse || fetch(e.request);
     })
   );
 });
