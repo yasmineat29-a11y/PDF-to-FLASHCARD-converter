@@ -16,199 +16,27 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #1a1613;
-            color: #e4dcd3;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        header {
-            background-color: #241e1a;
-            padding: 16px;
-            text-align: center;
-            border-bottom: 1px solid #362e28;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .app-logo-image {
-            width: 32px;
-            height: 32px;
-            object-fit: contain;
-        }
-
-        #app-workspace {
-            padding: 16px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            max-width: 600px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        .upload-container-row {
-            width: 100%;
-            margin-bottom: 16px;
-        }
-
-        .flashcard-view {
-            background: #f4ecd8;
-            border-radius: 16px;
-            width: 100%;
-            height: 380px; 
-            overflow: hidden;
-            border: 1px solid #dfd5be;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-            touch-action: pan-y;
-        }
-
-        .card-text-wrapper {
-            width: 100%;
-            height: 334px;
-            display: flex;
-            flex-direction: column; 
-            justify-content: flex-start; 
-            align-items: center;
-            overflow-y: auto;
-            background: #f4ecd8;
-            box-sizing: border-box;
-            padding: 28px;
-            padding-top: 48px;
-            text-align: center;
-            -webkit-overflow-scrolling: touch;
-            scroll-behavior: smooth;
-        }
-
-        .card-text-content {
-            font-family: Georgia, Cambria, "Times New Roman", Times, serif; 
-            font-size: 21px;
-            line-height: 1.65;
-            color: #110f0e;
-            word-wrap: break-word;
-            max-width: 100%;
-            transition: opacity 0.18s ease, transform 0.18s ease;
-            transform: translateY(0);
-            opacity: 1;
-        }
-
-        .card-text-content.changing {
-            opacity: 0;
-            transform: translateY(8px);
-        }
-
-        .card-metadata-footer {
-            height: 46px;
-            background: #e9dec4;
-            border-top: 1px solid #dfd5be;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 18px;
-            font-size: 13px;
-            font-weight: bold;
-            color: #5c5243;
-            letter-spacing: 0.04em;
-        }
-
-        .controls-row {
-            display: flex;
-            width: 100%;
-            padding: 20px 0;
-            gap: 8px;
-            flex-wrap: wrap; 
-        }
-
-        button, label.file-upload-label {
-            display: block;
-            width: 100%;
-            padding: 14px;
-            border-radius: 12px;
-            border: none;
-            font-size: 14px;
-            font-weight: bold;
-            text-align: center;
-            cursor: pointer;
-            box-sizing: border-box;
-            transition: background 0.2s ease, transform 0.1s ease;
-            flex: 1;
-            min-width: 80px;
-        }
-
-        button:active, label.file-upload-label:active {
-            transform: scale(0.98);
-        }
-
-        label.file-upload-label {
-            background-color: #8f7251;
-            color: #f4ecd8;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            flex: none;
-            width: 100%;
-        }
-
-        .btn-secondary {
-            background-color: #2a2420;
-            color: #e4dcd3;
-            border: 1px solid #3d342d;
-        }
-
-        .btn-danger {
-            background-color: #692c2c;
-            color: #e4dcd3;
-            margin-top: 12px;
-            flex: none;
-            width: 100%;
-        }
-
-        .btn-shuffle {
-            background-color: #423831;
-            color: #e4dcd3;
-        }
-
-        .btn-next-ordered {
-            background-color: #6e553a;
-            color: #e4dcd3;
-            display: none; 
-        }
-
-        .btn-save-lib {
-            background-color: #6e553a;
-            color: #e4dcd3;
-            margin-bottom: 16px;
-            display: none;
-        }
-
-        #file-input {
-            display: none;
-        }
-
-        .status-text {
-            font-size: 16px;
-            color: #c0b3a3;
-            text-align: center;
-            font-weight: bold;
-            padding: 40px 20px;
-            background: #241e1a;
-            border-radius: 16px;
-            border: 2px dashed #3d342d;
-            margin-top: 20px;
-            line-height: 1.5;
-        }
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #1a1613; color: #e4dcd3; display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
+        header { background-color: #241e1a; padding: 16px; text-align: center; border-bottom: 1px solid #362e28; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+        .app-logo-image { width: 32px; height: 32px; object-fit: contain; }
+        #app-workspace { padding: 16px; box-sizing: border-box; display: flex; flex-direction: column; flex: 1; max-width: 600px; margin: 0 auto; width: 100%; }
+        .upload-container-row { width: 100%; margin-bottom: 16px; }
+        .flashcard-view { background: #f4ecd8; border-radius: 16px; width: 100%; height: 380px; overflow: hidden; border: 1px solid #dfd5be; position: relative; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4); touch-action: pan-y; }
+        .card-text-wrapper { width: 100%; height: 334px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; overflow-y: auto; background: #f4ecd8; box-sizing: border-box; padding: 28px; padding-top: 48px; text-align: center; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+        .card-text-content { font-family: Georgia, Cambria, "Times New Roman", Times, serif; font-size: 21px; line-height: 1.65; color: #110f0e; word-wrap: break-word; max-width: 100%; transition: opacity 0.18s ease, transform 0.18s ease; transform: translateY(0); opacity: 1; }
+        .card-text-content.changing { opacity: 0; transform: translateY(8px); }
+        .card-metadata-footer { height: 46px; background: #e9dec4; border-top: 1px solid #dfd5be; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-size: 13px; font-weight: bold; color: #5c5243; letter-spacing: 0.04em; }
+        .controls-row { display: flex; width: 100%; padding: 20px 0; gap: 8px; flex-wrap: wrap; }
+        button, label.file-upload-label { display: block; width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 14px; font-weight: bold; text-align: center; cursor: pointer; box-sizing: border-box; transition: background 0.2s ease, transform 0.1s ease; flex: 1; min-width: 80px; }
+        button:active, label.file-upload-label:active { transform: scale(0.98); }
+        label.file-upload-label { background-color: #8f7251; color: #f4ecd8; box-shadow: 0 4px 12px rgba(0,0,0,0.2); flex: none; width: 100%; }
+        .btn-secondary { background-color: #2a2420; color: #e4dcd3; border: 1px solid #3d342d; }
+        .btn-danger { background-color: #692c2c; color: #e4dcd3; margin-top: 12px; flex: none; width: 100%; }
+        .btn-shuffle { background-color: #423831; color: #e4dcd3; }
+        .btn-next-ordered { background-color: #6e553a; color: #e4dcd3; display: none; }
+        .btn-save-lib { background-color: #6e553a; color: #e4dcd3; margin-bottom: 16px; display: none; }
+        #file-input { display: none; }
+        .status-text { font-size: 16px; color: #c0b3a3; text-align: center; font-weight: bold; padding: 40px 20px; background: #241e1a; border-radius: 16px; border: 2px dashed #3d342d; margin-top: 20px; line-height: 1.5; }
     </style>
 </head>
 <body>
@@ -251,445 +79,161 @@
     </div>
 
     <script>
-        // --- 1. POPUP / SYSTEM LOGIC ---
         let deferredInstallPrompt = null;
+        if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(err => console.error(err))); }
 
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('Service Worker Active'))
-                .catch(err => console.error(err));
-            });
-        }
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredInstallPrompt = e;
-        });
-
-        window.addEventListener('click', () => {
-            if (deferredInstallPrompt) {
-                deferredInstallPrompt.prompt();
-                deferredInstallPrompt.userChoice.then(() => {
-                    deferredInstallPrompt = null;
-                });
-            }
-        }, { once: true });
-
-        // Setup PDF.js
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js';
 
-        var flashcardAssetsDeck = [];
-        var originalAssetsOrder = []; 
-        var activeCardIndex = 0;
-        var serializedDeckForDb = []; 
-
-        var dbName = "FlashcarditTextDB";
-        var dbVersion = 1;
-        var db;
+        var flashcardAssetsDeck = [], originalAssetsOrder = [], activeCardIndex = 0, serializedDeckForDb = [];
+        var db, dbName = "FlashcarditTextDB", dbVersion = 1;
 
         var request = indexedDB.open(dbName, dbVersion);
-        request.onupgradeneeded = function(e) {
-            var database = e.target.result;
-            if (!database.objectStoreNames.contains("library")) {
-                database.createObjectStore("library", { keyPath: "id" });
-            }
-        };
-        request.onsuccess = function(e) {
-            db = e.target.result;
-            checkSavedLibraryProgress();
-        };
+        request.onupgradeneeded = (e) => { if (!e.target.result.objectStoreNames.contains("library")) e.target.result.createObjectStore("library", { keyPath: "id" }); };
+        request.onsuccess = (e) => { db = e.target.result; checkSavedLibraryProgress(); };
 
         document.getElementById('file-input').addEventListener('change', handleFileUpload);
 
         function checkSavedLibraryProgress() {
             if (!db) return;
             var store = db.transaction(["library"], "readonly").objectStore("library");
-            var getReq = store.get("active_deck");
-
-            getReq.onsuccess = function() {
-                var record = getReq.result;
+            store.get("active_deck").onsuccess = (e) => {
+                var record = e.target.result;
                 if (record && record.deck && record.deck.length > 0) {
-                    flashcardAssetsDeck = record.deck;
-                    serializedDeckForDb = record.deck;
-                    activeCardIndex = record.activeIndex || 0;
+                    flashcardAssetsDeck = record.deck; serializedDeckForDb = record.deck; activeCardIndex = record.activeIndex || 0;
                     originalAssetsOrder = [...record.deck].sort((a, b) => a.uid - b.uid);
-
                     toggleNextOrderedButtonVisibility();
-
-                    document.getElementById('status').style.display = 'none';
-                    document.getElementById('card-view').style.display = 'flex';
-                    document.getElementById('navigation-box').style.display = 'flex';
-                    document.getElementById('clear-lib-btn').style.display = 'block';
-                    document.getElementById('save-library-btn').style.display = 'none';
-                    document.getElementById('upload-label-text').innerText = "📁 Change File";
-                    
-                    renderActiveCard();
+                    document.getElementById('status').style.display = 'none'; document.getElementById('card-view').style.display = 'flex';
+                    document.getElementById('navigation-box').style.display = 'flex'; document.getElementById('clear-lib-btn').style.display = 'block';
+                    document.getElementById('upload-label-text').innerText = "📁 Change File"; renderActiveCard();
                 }
             };
         }
 
-        function toggleNextOrderedButtonVisibility() {
-            document.getElementById('next-ordered-btn').style.display = (flashcardAssetsDeck.length <= 1) ? 'none' : 'block';
-        }
+        function toggleNextOrderedButtonVisibility() { document.getElementById('next-ordered-btn').style.display = (flashcardAssetsDeck.length <= 1) ? 'none' : 'block'; }
 
         function commitDeckToIndexedDB() {
             if (!db || serializedDeckForDb.length === 0) return;
-            document.getElementById('save-library-btn').innerText = "⏳ Saving...";
-
             var store = db.transaction(["library"], "readwrite").objectStore("library");
-            var putReq = store.put({
-                id: "active_deck",
-                activeIndex: activeCardIndex,
-                deck: serializedDeckForDb
-            });
-
-            putReq.onsuccess = function() {
-                document.getElementById('save-library-btn').style.display = 'none';
-                document.getElementById('clear-lib-btn').style.display = 'block';
-                document.getElementById('save-library-btn').innerText = "📥 Add to Library";
+            store.put({ id: "active_deck", activeIndex: activeCardIndex, deck: serializedDeckForDb }).onsuccess = () => {
+                document.getElementById('save-library-btn').style.display = 'none'; document.getElementById('clear-lib-btn').style.display = 'block';
             };
         }
 
         function saveLibraryProgress() {
             if (!db || flashcardAssetsDeck.length === 0) return;
             var store = db.transaction(["library"], "readwrite").objectStore("library");
-            
-            var getReq = store.get("active_deck");
-            getReq.onsuccess = function() {
-                var record = getReq.result;
-                if (record) {
-                    record.activeIndex = activeCardIndex;
-                    record.deck = flashcardAssetsDeck;
-                    store.put(record);
-                }
+            store.get("active_deck").onsuccess = (e) => {
+                var record = e.target.result;
+                if (record) { record.activeIndex = activeCardIndex; record.deck = flashcardAssetsDeck; store.put(record); }
             };
         }
 
-        function clearSavedLibrary() {
-            if (!db) return;
-            db.transaction(["library"], "readwrite").objectStore("library").delete("active_deck").onsuccess = function() {
-                location.reload();
-            };
-        }
+        function clearSavedLibrary() { if (db) db.transaction(["library"], "readwrite").objectStore("library").delete("active_deck").onsuccess = () => location.reload(); }
 
-        // --- 2. ROUTER FOR DOCX OR PDF DISPATCHING ---
         function handleFileUpload(event) {
-            var file = event.target.files[0];
-            if (!file) return;
-
-            var statusLabel = document.getElementById('status');
-            var uploadLabel = document.getElementById('upload-label-text');
-            
-            uploadLabel.innerText = "⏳ Extracting...";
-            statusLabel.style.display = 'block';
-            statusLabel.innerHTML = "<strong>Reading document stream...</strong>";
-            
+            var file = event.target.files[0]; if (!file) return;
+            document.getElementById('upload-label-text').innerText = "⏳ Extracting...";
             document.getElementById('card-view').style.display = 'none';
-            document.getElementById('navigation-box').style.display = 'none';
-            document.getElementById('save-library-btn').style.display = 'none';
-            document.getElementById('next-ordered-btn').style.display = 'none';
-            
-            flashcardAssetsDeck = [];
-            originalAssetsOrder = [];
-            serializedDeckForDb = [];
-            activeCardIndex = 0;
-
-            if (file.name.endsWith('.docx')) {
-                processDocx(file);
-            } else {
-                processPdf(file);
-            }
+            flashcardAssetsDeck = []; originalAssetsOrder = []; serializedDeckForDb = []; activeCardIndex = 0;
+            file.name.endsWith('.docx') ? processDocx(file) : processPdf(file);
         }
 
-        // --- 3. MAMMOTH WORD DOCUMENT PARSER (.docx) ---
         function processDocx(file) {
-            var statusLabel = document.getElementById('status');
-            var uploadLabel = document.getElementById('upload-label-text');
-            var fileReader = new FileReader();
-
-            fileReader.onload = function(loadEvent) {
-                var arrayBuffer = loadEvent.target.result;
-                
-                mammoth.extractRawText({ arrayBuffer: arrayBuffer })
-                .then(function(result) {
-                    var text = result.value; 
-                    var rawSlices = text.split('.');
-                    var structuralUidCounter = 0;
-
-                    for (var j = 0; j < rawSlices.length; j++) {
-                        var sanitizedSentence = rawSlices[j].replace(/\s+/g, ' ').trim();
-                        sanitizedSentence = sanitizedSentence.replace(/^[\u060C\s،\.\-]+|[\u060C\s،\.\-]+$/g, '');
-
-                        if (sanitizedSentence.length > 3) {
-                            var itemObject = {
-                                uid: structuralUidCounter++,
-                                text: sanitizedSentence + ".",
-                                page: "Doc Paragraph"
-                            };
-                            flashcardAssetsDeck.push(itemObject);
-                            originalAssetsOrder.push({...itemObject});
-                            serializedDeckForDb.push(itemObject); 
+            var reader = new FileReader();
+            reader.onload = (e) => {
+                mammoth.extractRawText({ arrayBuffer: e.target.result }).then((res) => {
+                    var slices = res.value.split('. ');
+                    var uid = 0;
+                    slices.forEach(s => {
+                        let text = s.trim();
+                        if (text.length > 5) {
+                            let obj = { uid: uid++, text: text.endsWith('.') ? text : text + ".", page: "Doc Paragraph" };
+                            flashcardAssetsDeck.push(obj); originalAssetsOrder.push({...obj}); serializedDeckForDb.push(obj);
                         }
-                    }
-
+                    });
                     finalizeExtraction();
-                })
-                .catch(function(err) {
-                    console.error(err);
-                    uploadLabel.innerText = "📁 Select PDF or Word File";
-                    statusLabel.innerHTML = "<strong>Error processing Word document matrix.</strong>";
                 });
             };
-            fileReader.readAsArrayBuffer(file);
+            reader.readAsArrayBuffer(file);
         }
 
-        // --- 4. ADVANCED FRAGMENT-COMBINING PDF PARSER (.pdf) ---
         function processPdf(file) {
-            var statusLabel = document.getElementById('status');
-            var uploadLabel = document.getElementById('upload-label-text');
-            var fileReader = new FileReader();
-
-            fileReader.onload = function() {
-                var typedarray = new Uint8Array(this.result);
-                
-                pdfjsLib.getDocument({ data: typedarray }).promise.then(function(pdf) {
-                    var totalPages = pdf.numPages;
-                    var structuralUidCounter = 0;
-                    
-                    function processPage(pageNum) {
-                        if (pageNum > totalPages) {
-                            finalizeExtraction();
-                            return;
-                        }
-
-                        statusLabel.innerHTML = "<strong>Extracting: Page " + pageNum + " / " + totalPages + "</strong>";
-                        
-                        pdf.getPage(pageNum).then(function(page) {
-                            return page.getTextContent().then(function(textContent) {
-                                var linesMap = {};
-
-                                for (var i = 0; i < textContent.items.length; i++) {
-                                    var item = textContent.items[i];
-                                    if (!item || typeof item.str !== 'string' || item.str.trim() === '') continue;
-
-                                    var yCoord = Math.round(item.transform[5]);
-                                    var foundKey = Object.keys(linesMap).find(k => Math.abs(parseFloat(k) - yCoord) <= 5);
-                                    if (foundKey) {
-                                        linesMap[foundKey].push(item);
-                                    } else {
-                                        linesMap[yCoord] = [item];
-                                    }
+            var reader = new FileReader();
+            reader.onload = function() {
+                pdfjsLib.getDocument({ data: new Uint8Array(this.result) }).promise.then(pdf => {
+                    let total = pdf.numPages, uid = 0;
+                    const loop = (pageNum) => {
+                        if (pageNum > total) { finalizeExtraction(); return; }
+                        pdf.getPage(pageNum).then(p => p.getTextContent()).then(content => {
+                            let pageText = content.items.map(i => i.str).join(" ");
+                            let slices = pageText.split('. ');
+                            slices.forEach(s => {
+                                let text = s.trim();
+                                if (text.length > 5) {
+                                    let obj = { uid: uid++, text: text.endsWith('.') ? text : text + ".", page: "Page " + pageNum };
+                                    flashcardAssetsDeck.push(obj); originalAssetsOrder.push({...obj}); serializedDeckForDb.push(obj);
                                 }
-
-                                var sortedYKeys = Object.keys(linesMap).sort((a, b) => parseFloat(b) - parseFloat(a));
-                                var pageRawText = "";
-
-                                for (var k = 0; k < sortedYKeys.length; k++) {
-                                    var lineItems = linesMap[sortedYKeys[k]];
-                                    lineItems.sort((a, b) => a.transform[4] - b.transform[4]);
-
-                                    let wordsArray = [];
-                                    let currentWord = "";
-                                    let lastXEnd = -1;
-
-                                    for (let i = 0; i < lineItems.length; i++) {
-                                        let item = lineItems[i];
-                                        let textStr = item.str || "";
-                                        let itemXStart = item.transform[4];
-                                        let itemWidth = item.width || 0;
-
-                                        if (textStr === " " || textStr.trim() === "") {
-                                            if (currentWord.length > 0) {
-                                                wordsArray.push(currentWord);
-                                                currentWord = "";
-                                            }
-                                            continue;
-                                        }
-
-                                        if (lastXEnd !== -1 && Math.abs(itemXStart - lastXEnd) > 3.5) {
-                                            if (currentWord.length > 0) {
-                                                wordsArray.push(currentWord);
-                                                currentWord = "";
-                                            }
-                                        }
-
-                                        currentWord += textStr;
-                                        lastXEnd = itemXStart + itemWidth;
-                                    }
-                                    if (currentWord.length > 0) {
-                                        wordsArray.push(currentWord);
-                                    }
-
-                                    let lineText = wordsArray.join(" ");
-
-                                    if (/[\u0600-\u06FF]/.test(lineText)) {
-                                        let cleanWords = lineText.trim().split(/\s+/);
-                                        lineText = cleanWords.reverse().join(" ");
-                                    }
-
-                                    pageRawText += " " + lineText;
-                                }
-
-                                var rawSlices = pageRawText.split('.');
-                                for (var j = 0; j < rawSlices.length; j++) {
-                                    var sanitizedSentence = rawSlices[j].replace(/\s+/g, ' ').trim();
-                                    sanitizedSentence = sanitizedSentence.replace(/^[\u060C\s،\.\-]+|[\u060C\s،\.\-]+$/g, '');
-
-                                    if (sanitizedSentence.length > 3) {
-                                        var itemObject = {
-                                            uid: structuralUidCounter++,
-                                            text: sanitizedSentence + ".",
-                                            page: "Page " + pageNum
-                                        };
-                                        flashcardAssetsDeck.push(itemObject);
-                                        originalAssetsOrder.push({...itemObject});
-                                        serializedDeckForDb.push(itemObject); 
-                                    }
-                                }
-                                setTimeout(function() { processPage(pageNum + 1); }, 0);
                             });
-                        }).catch(function() {
-                            setTimeout(function() { processPage(pageNum + 1); }, 0);
+                            loop(pageNum + 1);
                         });
-                    }
-                    processPage(1);
-
-                }).catch(function(error) {
-                    console.error(error);
-                    uploadLabel.innerText = "📁 Select PDF or Word File";
-                    statusLabel.innerHTML = "<strong>File layout processing exception encountered.</strong>";
+                    };
+                    loop(1);
                 });
             };
-            fileReader.readAsArrayBuffer(file);
+            reader.readAsArrayBuffer(file);
         }
 
-        // --- 5. INTERFACE FINALIZATION ---
         function finalizeExtraction() {
-            var statusLabel = document.getElementById('status');
-            var uploadLabel = document.getElementById('upload-label-text');
-
-            if (flashcardAssetsDeck.length === 0) {
-                uploadLabel.innerText = "📁 Select PDF or Word File";
-                statusLabel.innerHTML = "<strong>No selectable text matrix discovered.</strong>";
-                return;
-            }
-
-            uploadLabel.innerText = "📁 Change File";
-            statusLabel.style.display = 'none';
-            
+            if (flashcardAssetsDeck.length === 0) { document.getElementById('status').innerHTML = "<strong>No text found.</strong>"; return; }
+            document.getElementById('status').style.display = 'none';
             document.getElementById('card-view').style.display = 'flex';
             document.getElementById('navigation-box').style.display = 'flex';
-            
-            var saveBtn = document.getElementById('save-library-btn');
-            saveBtn.innerText = "📥 Add to Library";
-            saveBtn.style.display = 'block';
-
+            document.getElementById('save-library-btn').style.display = 'block';
             renderActiveCard();
         }
 
         function renderActiveCard() {
             var container = document.getElementById('text-container');
             container.classList.add('changing');
-            
-            setTimeout(function() {
-                container.innerHTML = '';
-                if(!flashcardAssetsDeck[activeCardIndex]) {
-                    container.classList.remove('changing');
-                    return;
-                }
-
-                var activeCard = flashcardAssetsDeck[activeCardIndex];
-                
-                if (/[\u0600-\u06FF]/.test(activeCard.text)) {
-                    container.style.textAlign = 'right';
-                    container.setAttribute('dir', 'rtl');
-                } else {
-                    container.style.textAlign = 'center';
-                    container.setAttribute('dir', 'ltr');
-                }
-
-                container.innerHTML = "<br><br>" + activeCard.text;
-
-                document.getElementById('page-stamp').innerText = "Source: " + activeCard.page;
+            setTimeout(() => {
+                if(!flashcardAssetsDeck[activeCardIndex]) return;
+                var card = flashcardAssetsDeck[activeCardIndex];
+                container.innerHTML = "<br><br>" + card.text;
+                document.getElementById('page-stamp').innerText = "Source: " + card.page;
                 document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
-                
                 toggleNextOrderedButtonVisibility();
-                document.querySelector('.card-text-wrapper').scrollTop = 0;
                 container.classList.remove('changing');
             }, 180);
         }
 
-        function navigateDeck(direction) {
-            if (flashcardAssetsDeck.length === 0) return;
-            activeCardIndex += direction;
-            if (activeCardIndex < 0) activeCardIndex = 0;
-            if (activeCardIndex >= flashcardAssetsDeck.length) activeCardIndex = flashcardAssetsDeck.length - 1;
-            
-            renderActiveCard();
-            saveLibraryProgress();
+        function navigateDeck(dir) {
+            activeCardIndex = Math.max(0, Math.min(flashcardAssetsDeck.length - 1, activeCardIndex + dir));
+            renderActiveCard(); saveLibraryProgress();
         }
 
         function shuffleDeck() {
-            if (flashcardAssetsDeck.length <= 1) return;
-            var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
-            var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
-            
-            remainingItems.sort(function() { return Math.random() - 0.5; });
-            flashcardAssetsDeck = historyItems.concat(remainingItems);
-            
-            renderActiveCard();
-            saveLibraryProgress();
+            var history = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
+            var remaining = flashcardAssetsDeck.slice(activeCardIndex + 1).sort(() => Math.random() - 0.5);
+            flashcardAssetsDeck = history.concat(remaining);
+            renderActiveCard(); saveLibraryProgress();
         }
 
-        // --- 6. GESTURE RECOGNITION (LOW SENSITIVITY THRESHOLD: 110px) ---
-        var touchStartX = 0;
-        var touchEndX = 0;
-        var cardViewElement = document.getElementById('card-view');
-
-        cardViewElement.addEventListener('touchstart', function(event) {
-            touchStartX = event.changedTouches[0].screenX;
+        var touchStartX = 0, cardView = document.getElementById('card-view');
+        cardView.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, { passive: true });
+        cardView.addEventListener('touchend', e => {
+            let dist = touchStartX - e.changedTouches[0].screenX;
+            if (Math.abs(dist) > 110) navigateDeck(dist > 0 ? 1 : -1);
         }, { passive: true });
-
-        cardViewElement.addEventListener('touchend', function(event) {
-            touchEndX = event.changedTouches[0].screenX;
-            handleSwipeGesture();
-        }, { passive: true });
-
-        function handleSwipeGesture() {
-            var swipeThresholdDistance = 110; 
-            var totalTraveledDistance = touchStartX - touchEndX;
-
-            if (Math.abs(totalTraveledDistance) > swipeThresholdDistance) {
-                if (totalTraveledDistance > 0) {
-                    navigateDeck(1);
-                } else {
-                    navigateDeck(-1);
-                }
-            }
-        }
 
         function goToNextInStructuralOrder() {
-            if (flashcardAssetsDeck.length === 0) return;
-
-            var currentCard = flashcardAssetsDeck[activeCardIndex];
-            var targetUid = currentCard.uid + 1;
-
-            var absoluteNextCard = originalAssetsOrder.find(item => item.uid === targetUid);
-            if (!absoluteNextCard) return;
-
-            var historyItems = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
-            var remainingItems = flashcardAssetsDeck.slice(activeCardIndex + 1);
-            var filteredRemaining = remainingItems.filter(item => item.uid !== targetUid);
-
-            flashcardAssetsDeck = historyItems.concat([absoluteNextCard], filteredRemaining);
-            activeCardIndex += 1;
-
-            renderActiveCard();
-            saveLibraryProgress();
+            var target = flashcardAssetsDeck[activeCardIndex].uid + 1;
+            var next = originalAssetsOrder.find(i => i.uid === target);
+            if (!next) return;
+            flashcardAssetsDeck = flashcardAssetsDeck.slice(0, activeCardIndex + 1).concat(next, flashcardAssetsDeck.slice(activeCardIndex + 1).filter(i => i.uid !== target));
+            activeCardIndex++;
+            renderActiveCard(); saveLibraryProgress();
         }
     </script>
 </body>
 </html>
-
