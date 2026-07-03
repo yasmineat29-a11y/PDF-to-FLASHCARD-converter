@@ -26,7 +26,7 @@
         .card-text-content { font-family: Georgia, Cambria, "Times New Roman", Times, serif; font-size: 21px; line-height: 1.65; color: #110f0e; word-wrap: break-word; max-width: 100%; transition: opacity 0.18s ease, transform 0.18s ease; transform: translateY(0); opacity: 1; }
         .card-text-content.changing { opacity: 0; transform: translateY(8px); }
         .card-metadata-footer { height: 46px; background: #e9dec4; border-top: 1px solid #dfd5be; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-size: 13px; font-weight: bold; color: #5c5243; letter-spacing: 0.04em; }
-        .controls-row { display: flex; width: 100%; padding: 20px 0; gap: 8px; flex-wrap: wrap; }
+        .controls-row { display: flex; width: 100%; padding: 20px 0; gap: 8px; flex-wrap: wrap; flex-direction: column; }
         button, label.file-upload-label { display: block; width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 14px; font-weight: bold; text-align: center; cursor: pointer; box-sizing: border-box; transition: background 0.2s ease, transform 0.1s ease; flex: 1; min-width: 80px; }
         button:active, label.file-upload-label:active { transform: scale(0.98); }
         label.file-upload-label { background-color: #8f7251; color: #f4ecd8; box-shadow: 0 4px 12px rgba(0,0,0,0.2); flex: none; width: 100%; }
@@ -35,6 +35,7 @@
         .btn-shuffle { background-color: #423831; color: #e4dcd3; }
         .btn-next-ordered { background-color: #6e553a; color: #e4dcd3; display: none; }
         .btn-save-lib { background-color: #6e553a; color: #e4dcd3; margin-bottom: 16px; display: none; }
+        .btn-feedback { flex: 1; font-size: 20px; }
         #file-input { display: none; }
         .status-text { font-size: 16px; color: #c0b3a3; text-align: center; font-weight: bold; padding: 40px 20px; background: #241e1a; border-radius: 16px; border: 2px dashed #3d342d; margin-top: 20px; line-height: 1.5; }
     </style>
@@ -67,14 +68,21 @@
             <div class="card-metadata-footer">
                 <span id="page-stamp">Source: Document Element --</span>
                 <span id="counter-stamp">0 / 0</span>
+                <span id="feedback-stats">✅0 ❎0</span>
             </div>
         </div>
 
         <div class="controls-row" id="navigation-box" style="display: none;">
-            <button class="btn-secondary" onclick="navigateDeck(-1)">◀ Prev</button>
-            <button class="btn-shuffle" id="shuffle-btn" onclick="shuffleDeck()">🔀 Shuffle</button>
-            <button class="btn-next-ordered" id="next-ordered-btn" onclick="goToNextInStructuralOrder()">▶ Next in Order</button>
-            <button class="btn-secondary" onclick="navigateDeck(1)">Next ▶</button>
+            <div style="display: flex; gap: 8px; width: 100%;">
+                <button class="btn-feedback" onclick="trackFeedback(true)">✅</button>
+                <button class="btn-feedback" onclick="trackFeedback(false)">❎</button>
+            </div>
+            <div style="display: flex; gap: 8px; width: 100%;">
+                <button class="btn-secondary" onclick="navigateDeck(-1)">◀ Prev</button>
+                <button class="btn-shuffle" id="shuffle-btn" onclick="shuffleDeck()">🔀</button>
+                <button class="btn-next-ordered" id="next-ordered-btn" onclick="goToNextInStructuralOrder()">▶ Next in Order</button>
+                <button class="btn-secondary" onclick="navigateDeck(1)">Next ▶</button>
+            </div>
         </div>
     </div>
 
@@ -108,6 +116,13 @@
                     document.getElementById('upload-label-text').innerText = "📁 Change File"; renderActiveCard();
                 }
             };
+        }
+
+        function trackFeedback(isKnown) {
+            let card = flashcardAssetsDeck[activeCardIndex];
+            if (!card.know) card.know = 0; if (!card.miss) card.miss = 0;
+            isKnown ? card.know++ : card.miss++;
+            renderActiveCard(); saveLibraryProgress();
         }
 
         function toggleNextOrderedButtonVisibility() { document.getElementById('next-ordered-btn').style.display = (flashcardAssetsDeck.length <= 1) ? 'none' : 'block'; }
@@ -148,7 +163,7 @@
                     slices.forEach(s => {
                         let text = s.trim();
                         if (text.length > 5) {
-                            let obj = { uid: uid++, text: text.endsWith('.') ? text : text + ".", page: "Doc Paragraph" };
+                            let obj = { uid: uid++, text: text.endsWith('.') ? text : text + ".", page: "Doc Paragraph", know: 0, miss: 0 };
                             flashcardAssetsDeck.push(obj); originalAssetsOrder.push({...obj}); serializedDeckForDb.push(obj);
                         }
                     });
@@ -171,7 +186,7 @@
                             slices.forEach(s => {
                                 let text = s.trim();
                                 if (text.length > 5) {
-                                    let obj = { uid: uid++, text: text.endsWith('.') ? text : text + ".", page: "Page " + pageNum };
+                                    let obj = { uid: uid++, text: text.endsWith('.') ? text : text + ".", page: "Page " + pageNum, know: 0, miss: 0 };
                                     flashcardAssetsDeck.push(obj); originalAssetsOrder.push({...obj}); serializedDeckForDb.push(obj);
                                 }
                             });
@@ -202,6 +217,7 @@
                 container.innerHTML = "<br><br>" + card.text;
                 document.getElementById('page-stamp').innerText = "Source: " + card.page;
                 document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
+                document.getElementById('feedback-stats').innerText = "✅" + (card.know || 0) + " ❎" + (card.miss || 0);
                 toggleNextOrderedButtonVisibility();
                 container.classList.remove('changing');
             }, 180);
