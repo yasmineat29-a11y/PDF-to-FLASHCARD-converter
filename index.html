@@ -30,12 +30,12 @@
         button, label.file-upload-label { display: block; width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 14px; font-weight: bold; text-align: center; cursor: pointer; box-sizing: border-box; transition: background 0.2s ease, transform 0.1s ease; flex: 1; min-width: 80px; }
         button:active, label.file-upload-label:active { transform: scale(0.98); }
         label.file-upload-label { background-color: #8f7251; color: #f4ecd8; box-shadow: 0 4px 12px rgba(0,0,0,0.2); flex: none; width: 100%; }
-        .btn-secondary { background-color: #2a2420; color: #e4dcd3; border: 1px solid #3d342d; }
         .btn-danger { background-color: #692c2c; color: #e4dcd3; margin-top: 12px; flex: none; width: 100%; }
         .btn-shuffle { background-color: #423831; color: #e4dcd3; }
-        .btn-next-ordered { background-color: #6e553a; color: #e4dcd3; display: none; }
         .btn-save-lib { background-color: #6e553a; color: #e4dcd3; margin-bottom: 16px; display: none; }
         .btn-feedback { flex: 1; font-size: 20px; }
+        .btn-green { background-color: #28a745 !important; color: white; }
+        .btn-red { background-color: #dc3545 !important; color: white; }
         #file-input { display: none; }
         .status-text { font-size: 16px; color: #c0b3a3; text-align: center; font-weight: bold; padding: 40px 20px; background: #241e1a; border-radius: 16px; border: 2px dashed #3d342d; margin-top: 20px; line-height: 1.5; }
     </style>
@@ -68,20 +68,17 @@
             <div class="card-metadata-footer">
                 <span id="page-stamp">Source: Document Element --</span>
                 <span id="counter-stamp">0 / 0</span>
-                <span id="feedback-stats">✅0 ❎0</span>
+                <span id="feedback-stats">✅0 ❎0 (0%)</span>
             </div>
         </div>
 
         <div class="controls-row" id="navigation-box" style="display: none;">
             <div style="display: flex; gap: 8px; width: 100%;">
-                <button class="btn-feedback" onclick="trackFeedback(true)">✅</button>
-                <button class="btn-feedback" onclick="trackFeedback(false)">❎</button>
+                <button class="btn-feedback btn-green" onclick="trackFeedback(true)">✅</button>
+                <button class="btn-feedback btn-red" onclick="trackFeedback(false)">❎</button>
             </div>
-            <div style="display: flex; gap: 8px; width: 100%;">
-                <button class="btn-secondary" onclick="navigateDeck(-1)">◀ Prev</button>
-                <button class="btn-shuffle" id="shuffle-btn" onclick="shuffleDeck()">🔀</button>
-                <button class="btn-next-ordered" id="next-ordered-btn" onclick="goToNextInStructuralOrder()">▶ Next in Order</button>
-                <button class="btn-secondary" onclick="navigateDeck(1)">Next ▶</button>
+            <div style="display: flex; gap: 8px; width: 100%; margin-top: 8px;">
+                <button class="btn-shuffle" style="width: 100%;" onclick="shuffleDeck()">🔀 Shuffle</button>
             </div>
         </div>
     </div>
@@ -93,7 +90,7 @@
         var pdfjsLib = window['pdfjs-dist/build/pdf'];
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js';
 
-        var flashcardAssetsDeck = [], originalAssetsOrder = [], activeCardIndex = 0, serializedDeckForDb = [];
+        var flashcardAssetsDeck = [], activeCardIndex = 0;
         var db, dbName = "FlashcarditTextDB", dbVersion = 1;
 
         var request = indexedDB.open(dbName, dbVersion);
@@ -108,9 +105,7 @@
             store.get("active_deck").onsuccess = (e) => {
                 var record = e.target.result;
                 if (record && record.deck && record.deck.length > 0) {
-                    flashcardAssetsDeck = record.deck; serializedDeckForDb = record.deck; activeCardIndex = record.activeIndex || 0;
-                    originalAssetsOrder = [...record.deck].sort((a, b) => a.uid - b.uid);
-                    toggleNextOrderedButtonVisibility();
+                    flashcardAssetsDeck = record.deck; activeCardIndex = record.activeIndex || 0;
                     document.getElementById('status').style.display = 'none'; document.getElementById('card-view').style.display = 'flex';
                     document.getElementById('navigation-box').style.display = 'flex'; document.getElementById('clear-lib-btn').style.display = 'block';
                     document.getElementById('upload-label-text').innerText = "📁 Change File"; renderActiveCard();
@@ -125,12 +120,10 @@
             renderActiveCard(); saveLibraryProgress();
         }
 
-        function toggleNextOrderedButtonVisibility() { document.getElementById('next-ordered-btn').style.display = (flashcardAssetsDeck.length <= 1) ? 'none' : 'block'; }
-
         function commitDeckToIndexedDB() {
-            if (!db || serializedDeckForDb.length === 0) return;
+            if (!db || flashcardAssetsDeck.length === 0) return;
             var store = db.transaction(["library"], "readwrite").objectStore("library");
-            store.put({ id: "active_deck", activeIndex: activeCardIndex, deck: serializedDeckForDb }).onsuccess = () => {
+            store.put({ id: "active_deck", activeIndex: activeCardIndex, deck: flashcardAssetsDeck }).onsuccess = () => {
                 document.getElementById('save-library-btn').style.display = 'none'; document.getElementById('clear-lib-btn').style.display = 'block';
             };
         }
@@ -150,7 +143,7 @@
             var file = event.target.files[0]; if (!file) return;
             document.getElementById('upload-label-text').innerText = "⏳ Extracting...";
             document.getElementById('card-view').style.display = 'none';
-            flashcardAssetsDeck = []; originalAssetsOrder = []; serializedDeckForDb = []; activeCardIndex = 0;
+            flashcardAssetsDeck = []; activeCardIndex = 0;
             file.name.endsWith('.docx') ? processDocx(file) : processPdf(file);
         }
 
@@ -159,12 +152,10 @@
             reader.onload = (e) => {
                 mammoth.extractRawText({ arrayBuffer: e.target.result }).then((res) => {
                     var slices = res.value.split('. ');
-                    var uid = 0;
                     slices.forEach(s => {
                         let text = s.trim();
                         if (text.length > 5) {
-                            let obj = { uid: uid++, text: text.endsWith('.') ? text : text + ".", page: "Doc Paragraph", know: 0, miss: 0 };
-                            flashcardAssetsDeck.push(obj); originalAssetsOrder.push({...obj}); serializedDeckForDb.push(obj);
+                            flashcardAssetsDeck.push({ text: text.endsWith('.') ? text : text + ".", page: "Doc Paragraph", know: 0, miss: 0 });
                         }
                     });
                     finalizeExtraction();
@@ -177,7 +168,7 @@
             var reader = new FileReader();
             reader.onload = function() {
                 pdfjsLib.getDocument({ data: new Uint8Array(this.result) }).promise.then(pdf => {
-                    let total = pdf.numPages, uid = 0;
+                    let total = pdf.numPages;
                     const loop = (pageNum) => {
                         if (pageNum > total) { finalizeExtraction(); return; }
                         pdf.getPage(pageNum).then(p => p.getTextContent()).then(content => {
@@ -186,8 +177,7 @@
                             slices.forEach(s => {
                                 let text = s.trim();
                                 if (text.length > 5) {
-                                    let obj = { uid: uid++, text: text.endsWith('.') ? text : text + ".", page: "Page " + pageNum, know: 0, miss: 0 };
-                                    flashcardAssetsDeck.push(obj); originalAssetsOrder.push({...obj}); serializedDeckForDb.push(obj);
+                                    flashcardAssetsDeck.push({ text: text.endsWith('.') ? text : text + ".", page: "Page " + pageNum, know: 0, miss: 0 });
                                 }
                             });
                             loop(pageNum + 1);
@@ -210,46 +200,42 @@
 
         function renderActiveCard() {
             var container = document.getElementById('text-container');
+            var card = flashcardAssetsDeck[activeCardIndex];
+            
+            let totalKnow = flashcardAssetsDeck.reduce((sum, c) => sum + (c.know || 0), 0);
+            let totalMiss = flashcardAssetsDeck.reduce((sum, c) => sum + (c.miss || 0), 0);
+            let totalAttempts = totalKnow + totalMiss;
+            let percent = totalAttempts > 0 ? Math.round((totalKnow / totalAttempts) * 100) : 0;
+
             container.classList.add('changing');
             setTimeout(() => {
-                if(!flashcardAssetsDeck[activeCardIndex]) return;
-                var card = flashcardAssetsDeck[activeCardIndex];
                 container.innerHTML = "<br><br>" + card.text;
                 document.getElementById('page-stamp').innerText = "Source: " + card.page;
                 document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
-                document.getElementById('feedback-stats').innerText = "✅" + (card.know || 0) + " ❎" + (card.miss || 0);
-                toggleNextOrderedButtonVisibility();
+                document.getElementById('feedback-stats').innerText = `✅${totalKnow} ❎${totalMiss} (${percent}%)`;
                 container.classList.remove('changing');
             }, 180);
         }
 
-        function navigateDeck(dir) {
-            activeCardIndex = Math.max(0, Math.min(flashcardAssetsDeck.length - 1, activeCardIndex + dir));
-            renderActiveCard(); saveLibraryProgress();
-        }
-
         function shuffleDeck() {
-            var history = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
-            var remaining = flashcardAssetsDeck.slice(activeCardIndex + 1).sort(() => Math.random() - 0.5);
-            flashcardAssetsDeck = history.concat(remaining);
-            renderActiveCard(); saveLibraryProgress();
+            let current = flashcardAssetsDeck[activeCardIndex];
+            let remaining = flashcardAssetsDeck.filter((_, i) => i !== activeCardIndex).sort(() => Math.random() - 0.5);
+            flashcardAssetsDeck = [current, ...remaining];
+            activeCardIndex = 0;
+            renderActiveCard();
+            saveLibraryProgress();
         }
 
         var touchStartX = 0, cardView = document.getElementById('card-view');
         cardView.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, { passive: true });
         cardView.addEventListener('touchend', e => {
             let dist = touchStartX - e.changedTouches[0].screenX;
-            if (Math.abs(dist) > 110) navigateDeck(dist > 0 ? 1 : -1);
+            if (Math.abs(dist) > 110) {
+                activeCardIndex = Math.max(0, Math.min(flashcardAssetsDeck.length - 1, activeCardIndex + (dist > 0 ? 1 : -1)));
+                renderActiveCard();
+                saveLibraryProgress();
+            }
         }, { passive: true });
-
-        function goToNextInStructuralOrder() {
-            var target = flashcardAssetsDeck[activeCardIndex].uid + 1;
-            var next = originalAssetsOrder.find(i => i.uid === target);
-            if (!next) return;
-            flashcardAssetsDeck = flashcardAssetsDeck.slice(0, activeCardIndex + 1).concat(next, flashcardAssetsDeck.slice(activeCardIndex + 1).filter(i => i.uid !== target));
-            activeCardIndex++;
-            renderActiveCard(); saveLibraryProgress();
-        }
     </script>
 </body>
 </html>
