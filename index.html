@@ -6,8 +6,10 @@
     <title>Flashcardit - Text Slices</title>
     
     <link rel="manifest" href="./manifest.json">
+    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Flashcardit">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2702/2702134.png">
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js"></script>
@@ -20,45 +22,51 @@
         #app-workspace { padding: 16px; box-sizing: border-box; display: flex; flex-direction: column; flex: 1; max-width: 600px; margin: 0 auto; width: 100%; }
         .upload-container-row { width: 100%; margin-bottom: 16px; }
         .flashcard-view { background: #f4ecd8; border-radius: 16px; width: 100%; height: 380px; overflow: hidden; border: 1px solid #dfd5be; position: relative; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4); touch-action: pan-y; }
-        .card-text-wrapper { width: 100%; height: 334px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; overflow-y: auto; background: #f4ecd8; box-sizing: border-box; padding: 28px; padding-top: 48px; text-align: center; -webkit-overflow-scrolling: touch; }
-        .card-text-content { font-family: Georgia, Cambria, "Times New Roman", Times, serif; font-size: 21px; line-height: 1.65; color: #110f0e; transition: opacity 0.18s ease; opacity: 1; }
-        .card-text-content.changing { opacity: 0; }
-        .card-metadata-footer { height: 46px; background: #e9dec4; border-top: 1px solid #dfd5be; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-size: 13px; font-weight: bold; color: #5c5243; }
+        .card-text-wrapper { width: 100%; height: 334px; display: flex; flex-direction: column; justify-content: flex-start; align-items: center; overflow-y: auto; background: #f4ecd8; box-sizing: border-box; padding: 28px; padding-top: 48px; text-align: center; -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+        .card-text-content { font-family: Georgia, Cambria, "Times New Roman", Times, serif; font-size: 21px; line-height: 1.65; color: #110f0e; word-wrap: break-word; max-width: 100%; transition: opacity 0.18s ease, transform 0.18s ease; transform: translateY(0); opacity: 1; }
+        .card-text-content.changing { opacity: 0; transform: translateY(8px); }
+        .card-metadata-footer { height: 46px; background: #e9dec4; border-top: 1px solid #dfd5be; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-size: 13px; font-weight: bold; color: #5c5243; letter-spacing: 0.04em; }
         .controls-row { display: flex; width: 100%; padding: 20px 0; gap: 8px; flex-wrap: wrap; flex-direction: column; }
-        button, label.file-upload-label { display: block; width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 14px; font-weight: bold; text-align: center; cursor: pointer; transition: transform 0.1s ease; }
-        label.file-upload-label { background-color: #8f7251; color: #f4ecd8; }
-        .btn-danger { background-color: #692c2c; color: #e4dcd3; margin-top: 12px; }
+        button, label.file-upload-label { display: block; width: 100%; padding: 14px; border-radius: 12px; border: none; font-size: 14px; font-weight: bold; text-align: center; cursor: pointer; box-sizing: border-box; transition: background 0.2s ease, transform 0.1s ease; flex: 1; min-width: 80px; }
+        button:active, label.file-upload-label:active { transform: scale(0.98); }
+        label.file-upload-label { background-color: #8f7251; color: #f4ecd8; box-shadow: 0 4px 12px rgba(0,0,0,0.2); flex: none; width: 100%; }
+        .btn-danger { background-color: #692c2c; color: #e4dcd3; margin-top: 12px; flex: none; width: 100%; }
         .btn-shuffle { background-color: #423831; color: #e4dcd3; }
         .btn-save-lib { background-color: #6e553a; color: #e4dcd3; margin-bottom: 16px; display: none; }
         .btn-feedback { flex: 1; font-size: 20px; }
         .btn-green { background-color: #28a745 !important; color: white; }
         .btn-red { background-color: #dc3545 !important; color: white; }
         #file-input { display: none; }
-        .status-text { font-size: 16px; color: #c0b3a3; text-align: center; padding: 40px 20px; background: #241e1a; border-radius: 16px; border: 2px dashed #3d342d; margin-top: 20px; }
+        .status-text { font-size: 16px; color: #c0b3a3; text-align: center; font-weight: bold; padding: 40px 20px; background: #241e1a; border-radius: 16px; border: 2px dashed #3d342d; margin-top: 20px; line-height: 1.5; }
     </style>
 </head>
 <body>
 
     <header>
         <img src="https://cdn-icons-png.flaticon.com/512/2702/2702134.png" alt="Logo" class="app-logo-image">
-        <h4 style="margin:0; font-weight: bold; color: #ccb9a3;">Flashcardit Workspace</h4>
+        <h4 style="margin:0; font-weight: bold; color: #ccb9a3; letter-spacing: 0.03em;">Flashcardit Workspace</h4>
     </header>
 
     <div id="app-workspace">
-        <div class="upload-container-row">
+        <div class="upload-container-row" id="top-upload-box">
             <label class="file-upload-label" for="file-input" id="upload-label-text">📁 Select PDF or Word File</label>
             <input type="file" id="file-input" accept="application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document">
             <button class="btn-danger" id="clear-lib-btn" style="display:none;" onclick="clearSavedLibrary()">Reset Deck</button>
         </div>
 
-        <div id="status" class="status-text">Tap above to upload a document.<br><br>Slices text at every period.</div>
+        <div id="status" class="status-text">
+            Tap the button above to upload a textbook PDF or Word (.docx) document.<br><br>
+            <span style="font-size: 13px; font-weight: normal; color: #8c7f70;">Extracts text seamlessly and breaks sentences clean at every period.</span>
+        </div>
 
         <button class="btn-save-lib" id="save-library-btn" onclick="commitDeckToIndexedDB()">📥 Add to Library</button>
 
         <div class="flashcard-view" id="card-view" style="display: none;">
-            <div class="card-text-wrapper"><div class="card-text-content" id="text-container"></div></div>
+            <div class="card-text-wrapper">
+                <div class="card-text-content" id="text-container"></div>
+            </div>
             <div class="card-metadata-footer">
-                <span id="page-stamp">--</span>
+                <span id="page-stamp">Source: Document Element --</span>
                 <span id="counter-stamp">0 / 0</span>
                 <span id="feedback-stats">✅0 ❎0 (0%)</span>
             </div>
@@ -69,30 +77,120 @@
                 <button class="btn-feedback btn-green" onclick="trackFeedback(true)">✅</button>
                 <button class="btn-feedback btn-red" onclick="trackFeedback(false)">❎</button>
             </div>
-            <button class="btn-shuffle" onclick="shuffleDeck()">🔀 Shuffle</button>
+            <div style="display: flex; gap: 8px; width: 100%; margin-top: 8px;">
+                <button class="btn-shuffle" style="width: 100%;" onclick="shuffleDeck()">🔀 Shuffle</button>
+            </div>
         </div>
     </div>
 
     <script>
+        let deferredInstallPrompt = null;
+        if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(err => console.error(err))); }
+
+        var pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js';
+
         var flashcardAssetsDeck = [], activeCardIndex = 0;
-        var db; 
-        
-        // Init DB
-        var request = indexedDB.open("FlashcarditTextDB", 1);
-        request.onupgradeneeded = (e) => e.target.result.createObjectStore("library", { keyPath: "id" });
+        var db, dbName = "FlashcarditTextDB", dbVersion = 1;
+
+        var request = indexedDB.open(dbName, dbVersion);
+        request.onupgradeneeded = (e) => { if (!e.target.result.objectStoreNames.contains("library")) e.target.result.createObjectStore("library", { keyPath: "id" }); };
         request.onsuccess = (e) => { db = e.target.result; checkSavedLibraryProgress(); };
 
         document.getElementById('file-input').addEventListener('change', handleFileUpload);
 
+        function checkSavedLibraryProgress() {
+            if (!db) return;
+            var store = db.transaction(["library"], "readonly").objectStore("library");
+            store.get("active_deck").onsuccess = (e) => {
+                var record = e.target.result;
+                if (record && record.deck && record.deck.length > 0) {
+                    flashcardAssetsDeck = record.deck; activeCardIndex = record.activeIndex || 0;
+                    document.getElementById('status').style.display = 'none'; document.getElementById('card-view').style.display = 'flex';
+                    document.getElementById('navigation-box').style.display = 'flex'; document.getElementById('clear-lib-btn').style.display = 'block';
+                    document.getElementById('upload-label-text').innerText = "📁 Change File"; renderActiveCard();
+                }
+            };
+        }
+
         function trackFeedback(isKnown) {
             let card = flashcardAssetsDeck[activeCardIndex];
-            isKnown ? (card.know = (card.know || 0) + 1) : (card.miss = (card.miss || 0) + 1);
+            if (!card.know) card.know = 0; if (!card.miss) card.miss = 0;
+            isKnown ? card.know++ : card.miss++;
             renderActiveCard(); saveLibraryProgress();
         }
 
-        function finalizeExtraction(arr) {
-            // Assign seqIndex based on original order
-            flashcardAssetsDeck = arr.map((item, index) => ({...item, seqIndex: index}));
+        function commitDeckToIndexedDB() {
+            if (!db || flashcardAssetsDeck.length === 0) return;
+            var store = db.transaction(["library"], "readwrite").objectStore("library");
+            store.put({ id: "active_deck", activeIndex: activeCardIndex, deck: flashcardAssetsDeck }).onsuccess = () => {
+                document.getElementById('save-library-btn').style.display = 'none'; document.getElementById('clear-lib-btn').style.display = 'block';
+            };
+        }
+
+        function saveLibraryProgress() {
+            if (!db || flashcardAssetsDeck.length === 0) return;
+            var store = db.transaction(["library"], "readwrite").objectStore("library");
+            store.get("active_deck").onsuccess = (e) => {
+                var record = e.target.result;
+                if (record) { record.activeIndex = activeCardIndex; record.deck = flashcardAssetsDeck; store.put(record); }
+            };
+        }
+
+        function clearSavedLibrary() { if (db) db.transaction(["library"], "readwrite").objectStore("library").delete("active_deck").onsuccess = () => location.reload(); }
+
+        function handleFileUpload(event) {
+            var file = event.target.files[0]; if (!file) return;
+            document.getElementById('upload-label-text').innerText = "⏳ Extracting...";
+            document.getElementById('card-view').style.display = 'none';
+            flashcardAssetsDeck = []; activeCardIndex = 0;
+            file.name.endsWith('.docx') ? processDocx(file) : processPdf(file);
+        }
+
+        function processDocx(file) {
+            var reader = new FileReader();
+            reader.onload = (e) => {
+                mammoth.extractRawText({ arrayBuffer: e.target.result }).then((res) => {
+                    var slices = res.value.split('. ');
+                    slices.forEach(s => {
+                        let text = s.trim();
+                        if (text.length > 5) {
+                            flashcardAssetsDeck.push({ text: text.endsWith('.') ? text : text + ".", page: "Doc Paragraph", know: 0, miss: 0 });
+                        }
+                    });
+                    finalizeExtraction();
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processPdf(file) {
+            var reader = new FileReader();
+            reader.onload = function() {
+                pdfjsLib.getDocument({ data: new Uint8Array(this.result) }).promise.then(pdf => {
+                    let total = pdf.numPages;
+                    const loop = (pageNum) => {
+                        if (pageNum > total) { finalizeExtraction(); return; }
+                        pdf.getPage(pageNum).then(p => p.getTextContent()).then(content => {
+                            let pageText = content.items.map(i => i.str).join(" ");
+                            let slices = pageText.split('. ');
+                            slices.forEach(s => {
+                                let text = s.trim();
+                                if (text.length > 5) {
+                                    flashcardAssetsDeck.push({ text: text.endsWith('.') ? text : text + ".", page: "Page " + pageNum, know: 0, miss: 0 });
+                                }
+                            });
+                            loop(pageNum + 1);
+                        });
+                    };
+                    loop(1);
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function finalizeExtraction() {
+            if (flashcardAssetsDeck.length === 0) { document.getElementById('status').innerHTML = "<strong>No text found.</strong>"; return; }
             document.getElementById('status').style.display = 'none';
             document.getElementById('card-view').style.display = 'flex';
             document.getElementById('navigation-box').style.display = 'flex';
@@ -103,16 +201,17 @@
         function renderActiveCard() {
             var container = document.getElementById('text-container');
             var card = flashcardAssetsDeck[activeCardIndex];
-            let totalKnow = flashcardAssetsDeck.reduce((s, c) => s + (c.know || 0), 0);
-            let totalMiss = flashcardAssetsDeck.reduce((s, c) => s + (c.miss || 0), 0);
-            let total = totalKnow + totalMiss;
-            let percent = total > 0 ? Math.round((totalKnow / total) * 100) : 0;
+            
+            let totalKnow = flashcardAssetsDeck.reduce((sum, c) => sum + (c.know || 0), 0);
+            let totalMiss = flashcardAssetsDeck.reduce((sum, c) => sum + (c.miss || 0), 0);
+            let totalAttempts = totalKnow + totalMiss;
+            let percent = totalAttempts > 0 ? Math.round((totalKnow / totalAttempts) * 100) : 0;
 
             container.classList.add('changing');
             setTimeout(() => {
                 container.innerHTML = "<br><br>" + card.text;
-                document.getElementById('page-stamp').innerText = card.page;
-                document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + "/" + flashcardAssetsDeck.length;
+                document.getElementById('page-stamp').innerText = "Source: " + card.page;
+                document.getElementById('counter-stamp').innerText = (activeCardIndex + 1) + " / " + flashcardAssetsDeck.length;
                 document.getElementById('feedback-stats').innerText = `✅${totalKnow} ❎${totalMiss} (${percent}%)`;
                 container.classList.remove('changing');
             }, 180);
@@ -120,33 +219,23 @@
 
         function shuffleDeck() {
             let current = flashcardAssetsDeck[activeCardIndex];
-            let rest = flashcardAssetsDeck.filter((_, i) => i !== activeCardIndex).sort(() => Math.random() - 0.5);
-            flashcardAssetsDeck = [current, ...rest];
+            let remaining = flashcardAssetsDeck.filter((_, i) => i !== activeCardIndex).sort(() => Math.random() - 0.5);
+            flashcardAssetsDeck = [current, ...remaining];
             activeCardIndex = 0;
-            renderActiveCard(); saveLibraryProgress();
+            renderActiveCard();
+            saveLibraryProgress();
         }
 
-        // Gesture Logic: Navigate via seqIndex
-        var touchStartX = 0;
-        document.getElementById('card-view').addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, {passive: true});
-        document.getElementById('card-view').addEventListener('touchend', e => {
+        var touchStartX = 0, cardView = document.getElementById('card-view');
+        cardView.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, { passive: true });
+        cardView.addEventListener('touchend', e => {
             let dist = touchStartX - e.changedTouches[0].screenX;
-            if (Math.abs(dist) > 100) {
-                let currentSeq = flashcardAssetsDeck[activeCardIndex].seqIndex;
-                let targetSeq = currentSeq + (dist > 0 ? 1 : -1);
-                let nextIdx = flashcardAssetsDeck.findIndex(c => c.seqIndex === targetSeq);
-                if (nextIdx !== -1) {
-                    activeCardIndex = nextIdx;
-                    renderActiveCard(); saveLibraryProgress();
-                }
+            if (Math.abs(dist) > 110) {
+                activeCardIndex = Math.max(0, Math.min(flashcardAssetsDeck.length - 1, activeCardIndex + (dist > 0 ? 1 : -1)));
+                renderActiveCard();
+                saveLibraryProgress();
             }
-        }, {passive: true});
-
-        // Helper functions
-        function saveLibraryProgress() { if (db) { var tx = db.transaction("library", "readwrite"); tx.objectStore("library").put({ id: "active_deck", activeIndex: activeCardIndex, deck: flashcardAssetsDeck }); } }
-        function checkSavedLibraryProgress() { /* ... existing logic ... */ }
-        function clearSavedLibrary() { db.transaction("library", "readwrite").objectStore("library").delete("active_deck").onsuccess = () => location.reload(); }
-        // ... (Include original processPdf/processDocx functions here, calling finalizeExtraction)
+        }, { passive: true });
     </script>
 </body>
 </html>
