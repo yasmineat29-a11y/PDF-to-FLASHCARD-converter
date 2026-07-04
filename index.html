@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Flashcardit - Text Slices</title>
-    
     <link rel="manifest" href="./manifest.json">
-    
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Flashcardit">
@@ -55,8 +53,7 @@
         </div>
 
         <div id="status" class="status-text">
-            Tap the button above to upload a textbook PDF or Word (.docx) document.<br><br>
-            <span style="font-size: 13px; font-weight: normal; color: #8c7f70;">Extracts text seamlessly and breaks sentences clean at every period.</span>
+            Tap the button above to upload a textbook PDF or Word (.docx) document.
         </div>
 
         <button class="btn-save-lib" id="save-library-btn" onclick="commitDeckToIndexedDB()">📥 Add to Library</button>
@@ -87,11 +84,10 @@
     </div>
 
     <script>
-        let deferredInstallPrompt = null;
-        if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(err => console.error(err))); }
-
-        var pdfjsLib = window['pdfjs-dist/build/pdf'];
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.min.js';
+        // Fix: Force file input to clear on click so the 'change' event always triggers
+        const fileInput = document.getElementById('file-input');
+        fileInput.addEventListener('click', () => { fileInput.value = ''; });
+        fileInput.addEventListener('change', handleFileUpload);
 
         var flashcardAssetsDeck = [], originalAssetsOrder = [], activeCardIndex = 0, serializedDeckForDb = [];
         var db, dbName = "FlashcarditTextDB", dbVersion = 1;
@@ -99,8 +95,6 @@
         var request = indexedDB.open(dbName, dbVersion);
         request.onupgradeneeded = (e) => { if (!e.target.result.objectStoreNames.contains("library")) e.target.result.createObjectStore("library", { keyPath: "id" }); };
         request.onsuccess = (e) => { db = e.target.result; checkSavedLibraryProgress(); };
-
-        document.getElementById('file-input').addEventListener('change', handleFileUpload);
 
         function checkSavedLibraryProgress() {
             if (!db) return;
@@ -110,7 +104,6 @@
                 if (record && record.deck && record.deck.length > 0) {
                     flashcardAssetsDeck = record.deck; serializedDeckForDb = record.deck; activeCardIndex = record.activeIndex || 0;
                     originalAssetsOrder = [...record.deck].sort((a, b) => a.uid - b.uid);
-                    toggleNextOrderedButtonVisibility();
                     document.getElementById('status').style.display = 'none'; document.getElementById('card-view').style.display = 'flex';
                     document.getElementById('navigation-box').style.display = 'flex'; document.getElementById('clear-lib-btn').style.display = 'block';
                     document.getElementById('upload-label-text').innerText = "📁 Change File"; renderActiveCard();
