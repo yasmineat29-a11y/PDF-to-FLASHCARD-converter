@@ -227,10 +227,6 @@ function finalizeExtraction(text) {
     
     return slices;
 }
-
-// Example usage:
-const result = finalizeExtraction(yourPdfTextVariable);
-console.log(result);
     
     flashcardAssetsDeck = slices.map((s, index) => ({
         id: "card_" + Date.now() + "_" + index,
