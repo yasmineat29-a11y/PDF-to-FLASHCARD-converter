@@ -167,14 +167,35 @@
             renderActiveCard(); saveLibraryProgress();
         }
 
-        // --- Standard File Processing Helpers remain unchanged ---
-        function commitDeckToIndexedDB() { /* Logic unchanged */ }
-        function saveLibraryProgress() { /* Logic unchanged */ }
-        function clearSavedLibrary() { /* Logic unchanged */ }
-        function handleFileUpload(event) { /* Logic unchanged */ }
-        function processDocx(file) { /* Logic unchanged */ }
-        function processPdf(file) { /* Logic unchanged */ }
-        function finalizeExtraction() { /* Logic unchanged */ }
+        // --- Standard File Processing Helpers ---
+
+function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Show visual feedback that processing has started
+    const statusEl = document.getElementById('status');
+    statusEl.innerText = "Processing file...";
+    statusEl.style.display = 'block';
+
+    const fileType = file.name.split('.').pop().toLowerCase();
+
+    if (fileType === 'docx') {
+        processDocx(file);
+    } else if (fileType === 'pdf') {
+        processPdf(file);
+    } else {
+        alert("Unsupported file format. Please upload a .docx or .pdf file.");
+        statusEl.style.display = 'none';
+    }
+}
+
+// Ensure these functions are implemented correctly below:
+function processDocx(file) { /* Your existing logic */ }
+function processPdf(file) { /* Your existing logic */ }
+function finalizeExtraction(data) { /* Your existing logic */ }
+// ...
+
     </script>
 </body>
 </html>
