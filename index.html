@@ -210,8 +210,9 @@ async function processPdf(arrayBuffer) {
 }
 
 function finalizeExtraction(text) {
-    // Split by ". " and filter out empty strings
-const slices = text.split(/\.\s+/).filter(Boolean);
+    // Split by period, but keep the period attached to the previous sentence
+const slices = text.split(/(?<=\.\s+)/).filter(Boolean);
+
 
     
     flashcardAssetsDeck = slices.map((s, index) => ({
