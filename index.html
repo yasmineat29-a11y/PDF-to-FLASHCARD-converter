@@ -211,7 +211,7 @@ async function processPdf(arrayBuffer) {
 
 function finalizeExtraction(text) {
     // Basic splitting logic: Split by double newlines or long paragraphs
-    const slices = text.split(/\t+/).filter(s => s.trim().length > 0);
+    const slices = text.split(/\t/).filter(s => s.trim().length > 0);
     
     flashcardAssetsDeck = slices.map((s, index) => ({
         id: "card_" + Date.now() + "_" + index,
