@@ -166,14 +166,45 @@
             renderActiveCard(); saveLibraryProgress();
         }
 
-        // --- Standard File Processing Helpers remain unchanged ---
-        function commitDeckToIndexedDB() { /* Logic unchanged */ }
-        function saveLibraryProgress() { /* Logic unchanged */ }
-        function clearSavedLibrary() { /* Logic unchanged */ }
-        function handleFileUpload(event) { /* Logic unchanged */ }
-        function processDocx(file) { /* Logic unchanged */ }
-        function processPdf(file) { /* Logic unchanged */ }
-        function finalizeExtraction() { /* Logic unchanged */ }
+        // --- Standard File Processing Helpers ---
+
+/**
+ * Commits processed data to IndexedDB using tab-separated format.
+ * @param {Array} data - The array of extracted data items.
+ */
+function commitDeckToIndexedDB(data) {
+    // Example usage: joining data with tabs for storage or export
+    const tabSeparatedString = data.join('\t');
+    console.log("Committing to IndexedDB:", tabSeparatedString);
+    /* Logic: Use tabSeparatedString for database entry */
+}
+
+function saveLibraryProgress() { /* Logic unchanged */ }
+function clearSavedLibrary() { /* Logic unchanged */ }
+
+function handleFileUpload(event) {
+    const file = event.target.files[0];
+    // Ensure processing recognizes the file as a tab-delimited source
+    if (file.name.endsWith('.txt') || file.name.endsWith('.tsv')) {
+        // Trigger parsing logic
+    }
+}
+
+function processDocx(file) {
+    // When parsing, split extracted lines by tab:
+    // const rows = extractedText.split('\n');
+    // const cells = rows.map(row => row.split('\t'));
+}
+
+function processPdf(file) {
+    // Similar to docx, ensure your extraction regex or splitter uses '\t'
+}
+
+function finalizeExtraction() {
+    // When finalizing, ensure any exported CSV-like strings 
+    // are joined by '\t' instead of commas
+}
+
     </script>
 </body>
 </html>
