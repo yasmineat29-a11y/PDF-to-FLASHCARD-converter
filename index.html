@@ -167,34 +167,95 @@
             renderActiveCard(); saveLibraryProgress();
         }
 
-        // --- Standard File Processing Helpers ---
+        // --- Updated File Processing Logic ---
 
 function handleFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    // Show visual feedback that processing has started
-    const statusEl = document.getElementById('status');
-    statusEl.innerText = "Processing file...";
-    statusEl.style.display = 'block';
+    document.getElementById('status').innerText = "Processing file...";
+    document.getElementById('status').style.display = 'block';
 
-    const fileType = file.name.split('.').pop().toLowerCase();
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const fileType = file.name.split('.').pop().toLowerCase();
+        if (fileType === 'docx') {
+            processDocx(e.target.result);
+        } else if (fileType === 'pdf') {
+            processPdf(e.target.result);
+        }
+    };
+    reader.readAsArrayBuffer(file);
+}
 
-    if (fileType === 'docx') {
-        processDocx(file);
-    } else if (fileType === 'pdf') {
-        processPdf(file);
-    } else {
-        alert("Unsupported file format. Please upload a .docx or .pdf file.");
-        statusEl.style.display = 'none';
+function processDocx(arrayBuffer) {
+    mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+        .then(result => finalizeExtraction(result.value))
+        .catch(err => alert("Error processing DOCX: " + err));
+}
+
+async function processPdf(arrayBuffer) {
+    try {
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const textContent = await page.getTextContent();
+            fullText += textContent.items.map(item => item.str).join(" ") + "\n";
+        }
+        finalizeExtraction(fullText);
+    } catch (err) {
+        alert("Error processing PDF: " + err);
     }
 }
 
-// Ensure these functions are implemented correctly below:
-function processDocx(file) { /* Your existing logic */ }
-function processPdf(file) { /* Your existing logic */ }
-function finalizeExtraction(data) { /* Your existing logic */ }
-// ...
+function finalizeExtraction(text) {
+    // Basic splitting logic: Split by double newlines or long paragraphs
+    const slices = text.split(/\n\s*\n/).filter(s => s.trim().length > 20);
+    
+    flashcardAssetsDeck = slices.map((s, index) => ({
+        id: "card_" + Date.now() + "_" + index,
+        uid: index,
+        text: s.trim(),
+        know: 0,
+        miss: 0
+    }));
+
+    originalAssetsOrder = [...flashcardAssetsDeck];
+    activeCardIndex = 0;
+
+    // UI Updates
+    document.getElementById('status').style.display = 'none';
+    document.getElementById('card-view').style.display = 'flex';
+    document.getElementById('navigation-box').style.display = 'flex';
+    document.getElementById('clear-lib-btn').style.display = 'block';
+    document.getElementById('upload-label-text').innerText = "📁 Change File";
+    
+    renderActiveCard();
+    saveLibraryProgress();
+}
+
+// Ensure pdf.js worker is configured
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.js';
+
+// --- Existing Helpers ---
+function saveLibraryProgress() {
+    if (!db) return;
+    let transaction = db.transaction(["library"], "readwrite");
+    transaction.objectStore("library").put({ 
+        id: "active_deck", 
+        deck: flashcardAssetsDeck, 
+        activeIndex: activeCardIndex 
+    });
+}
+
+function clearSavedLibrary() {
+    db.transaction(["library"], "readwrite").objectStore("library").delete("active_deck");
+    location.reload();
+}
+
+function commitDeckToIndexedDB() { /* Already handled by saveLibraryProgress */ }
+
 
     </script>
 </body>
