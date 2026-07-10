@@ -210,8 +210,8 @@ async function processPdf(arrayBuffer) {
 }
 
 function finalizeExtraction(text) {
-    // Split by Form Feed (\f) OR double line breaks (\n\n)
-const slices = text.split(/\f|\n\s*\n/).filter(s => s.trim().length > 0);
+    // Split by Form Feed (\f)
+const slices = text.split(/\f/).filter(s => s.trim().length > 0);
     
     flashcardAssetsDeck = slices.map((s, index) => ({
         id: "card_" + Date.now() + "_" + index,
