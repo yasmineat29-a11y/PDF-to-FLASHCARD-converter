@@ -210,23 +210,7 @@ async function processPdf(arrayBuffer) {
 }
 
 function finalizeExtraction(text) {
-    if (!text || typeof text !== 'string') return [];
-
-    const wordCount = 50;
-    
-    // 1. Split into individual words, filtering out empty entries
-    const words = text.trim().split(/\s+/);
-    
-    // 2. Group into chunks
-    const slices = [];
-    for (let i = 0; i < words.length; i += wordCount) {
-        // Slice 50 words and join them back into a string
-        const chunk = words.slice(i, i + wordCount).join(' ');
-        slices.push(chunk);
-    }
-    
-    return slices;
-}
+    const slices = text.split(/\f+/).filter(Boolean);
     
     flashcardAssetsDeck = slices.map((s, index) => ({
         id: "card_" + Date.now() + "_" + index,
