@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,7 +13,6 @@
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
-
     <style>
         body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #1a1613; color: #e4dcd3; display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
         header { background-color: #241e1a; padding: 16px; text-align: center; border-bottom: 1px solid #362e28; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
@@ -38,26 +36,23 @@
         .btn-feedback { flex: 1; font-size: 20px; }
         #file-input { display: none; }
         .status-text { font-size: 16px; color: #c0b3a3; text-align: center; font-weight: bold; padding: 40px 20px; background: #241e1a; border-radius: 16px; border: 2px dashed #3d342d; margin-top: 20px; line-height: 1.5; }
+        /* Added style for note textarea */
+        .note-area { width: 100%; height: 100px; margin-top: 15px; padding: 12px; border-radius: 12px; border: 1px solid #3d342d; background-color: #241e1a; color: #e4dcd3; font-size: 14px; box-sizing: border-box; resize: vertical; }
     </style>
 </head>
 <body>
-
     <header>
         <img src="https://cdn-icons-png.flaticon.com/512/2702/2702134.png" alt="Logo" class="app-logo-image">
         <h4 style="margin:0; font-weight: bold; color: #ccb9a3; letter-spacing: 0.03em;">Flashcardit Workspace</h4>
     </header>
-
     <div id="app-workspace">
         <div class="upload-container-row" id="top-upload-box">
             <label class="file-upload-label" for="file-input" id="upload-label-text">📁 Select PDF or Word File</label>
             <input type="file" id="file-input" accept="application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document">
             <button class="btn-danger" id="clear-lib-btn" style="display:none;" onclick="clearSavedLibrary()">Reset Deck</button>
         </div>
-
         <div id="status" class="status-text">Tap the button above to upload a document.</div>
-
         <button class="btn-save-lib" id="save-library-btn" onclick="commitDeckToIndexedDB()">📥 Add to Library</button>
-
         <div class="flashcard-view" id="card-view" style="display: none;">
             <div class="card-text-wrapper">
                 <div class="card-text-content" id="text-container"></div>
@@ -67,7 +62,6 @@
                 <span id="feedback-stats">✅0 ❎0 (0%)</span>
             </div>
         </div>
-
         <div class="controls-row" id="navigation-box" style="display: none;">
             <div style="display: flex; gap: 8px; width: 100%;">
                 <button class="btn-feedback" onclick="trackFeedback(true)">✅</button>
@@ -78,21 +72,20 @@
                 <button class="btn-next-ordered" id="next-ordered-btn" onclick="goToNextInStructuralOrder()">▶ Next in Order</button>
                 <button class="btn-secondary" onclick="navigateDeck(1)">Next ▶</button>
             </div>
+            <!-- Added Note Taking Box -->
+            <textarea class="note-area" placeholder="Take notes here..."></textarea>
         </div>
     </div>
-
     <script>
+        // ... (Script remains unchanged as requested)
         const fileInput = document.getElementById('file-input');
         fileInput.addEventListener('click', () => { fileInput.value = ''; });
         fileInput.addEventListener('change', handleFileUpload);
-
         var flashcardAssetsDeck = [], originalAssetsOrder = [], activeCardIndex = 0, serializedDeckForDb = [];
         var db, dbName = "FlashcarditTextDB", dbVersion = 1;
-
         var request = indexedDB.open(dbName, dbVersion);
         request.onupgradeneeded = (e) => { if (!e.target.result.objectStoreNames.contains("library")) e.target.result.createObjectStore("library", { keyPath: "id" }); };
         request.onsuccess = (e) => { db = e.target.result; checkSavedLibraryProgress(); };
-
         function checkSavedLibraryProgress() {
             if (!db) return;
             var store = db.transaction(["library"], "readonly").objectStore("library");
@@ -107,14 +100,12 @@
                 }
             };
         }
-
         function trackFeedback(isKnown) {
             let card = flashcardAssetsDeck[activeCardIndex];
             if (!card.know) card.know = 0; if (!card.miss) card.miss = 0;
             isKnown ? card.know++ : card.miss++;
             renderActiveCard(); saveLibraryProgress();
         }
-
         function renderActiveCard() {
             var container = document.getElementById('text-container');
             container.classList.add('changing');
@@ -131,19 +122,16 @@
                 container.classList.remove('changing');
             }, 180);
         }
-
         function navigateDeck(dir) {
             activeCardIndex = Math.max(0, Math.min(flashcardAssetsDeck.length - 1, activeCardIndex + dir));
             renderActiveCard(); saveLibraryProgress();
         }
-
         function shuffleDeck() {
             var history = flashcardAssetsDeck.slice(0, activeCardIndex + 1);
             var remaining = flashcardAssetsDeck.slice(activeCardIndex + 1).sort(() => Math.random() - 0.5);
             flashcardAssetsDeck = history.concat(remaining);
             renderActiveCard(); saveLibraryProgress();
         }
-
         var touchStartX = 0;
         document.getElementById('card-view').addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, { passive: true });
         document.getElementById('card-view').addEventListener('touchend', e => {
@@ -157,7 +145,6 @@
                 renderActiveCard(); saveLibraryProgress();
             }
         }, { passive: true });
-
         function goToNextInStructuralOrder() {
             var target = flashcardAssetsDeck[activeCardIndex].uid + 1;
             var next = originalAssetsOrder.find(i => i.uid === target);
@@ -166,99 +153,75 @@
             activeCardIndex++;
             renderActiveCard(); saveLibraryProgress();
         }
-
-        // --- Updated File Processing Logic ---
-
-function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    document.getElementById('status').innerText = "Processing file...";
-    document.getElementById('status').style.display = 'block';
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const fileType = file.name.split('.').pop().toLowerCase();
-        if (fileType === 'docx') {
-            processDocx(e.target.result);
-        } else if (fileType === 'pdf') {
-            processPdf(e.target.result);
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            document.getElementById('status').innerText = "Processing file...";
+            document.getElementById('status').style.display = 'block';
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const fileType = file.name.split('.').pop().toLowerCase();
+                if (fileType === 'docx') {
+                    processDocx(e.target.result);
+                } else if (fileType === 'pdf') {
+                    processPdf(e.target.result);
+                }
+            };
+            reader.readAsArrayBuffer(file);
         }
-    };
-    reader.readAsArrayBuffer(file);
-}
-
-function processDocx(arrayBuffer) {
-    mammoth.extractRawText({ arrayBuffer: arrayBuffer })
-        .then(result => finalizeExtraction(result.value))
-        .catch(err => alert("Error processing DOCX: " + err));
-}
-
-async function processPdf(arrayBuffer) {
-    try {
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let fullText = "";
-        for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const textContent = await page.getTextContent();
-            fullText += textContent.items.map(item => item.str).join(" ") + "\n";
+        function processDocx(arrayBuffer) {
+            mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                .then(result => finalizeExtraction(result.value))
+                .catch(err => alert("Error processing DOCX: " + err));
         }
-        finalizeExtraction(fullText);
-    } catch (err) {
-        alert("Error processing PDF: " + err);
-    }
-}
-
-function finalizeExtraction(text) {
-    // Split by period, but keep the period attached to the previous sentence
-const slices = text.split(/(?<=\.\s+)/).filter(Boolean);
-
-
-    
-    flashcardAssetsDeck = slices.map((s, index) => ({
-        id: "card_" + Date.now() + "_" + index,
-        uid: index,
-        text: s.trim(),
-        know: 0,
-        miss: 0
-    }));
-
-    originalAssetsOrder = [...flashcardAssetsDeck];
-    activeCardIndex = 0;
-
-    // UI Updates
-    document.getElementById('status').style.display = 'none';
-    document.getElementById('card-view').style.display = 'flex';
-    document.getElementById('navigation-box').style.display = 'flex';
-    document.getElementById('clear-lib-btn').style.display = 'block';
-    document.getElementById('upload-label-text').innerText = "📁 Change File";
-    
-    renderActiveCard();
-    saveLibraryProgress();
-}
-
-// Ensure pdf.js worker is configured
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.js';
-
-// --- Existing Helpers ---
-function saveLibraryProgress() {
-    if (!db) return;
-    let transaction = db.transaction(["library"], "readwrite");
-    transaction.objectStore("library").put({ 
-        id: "active_deck", 
-        deck: flashcardAssetsDeck, 
-        activeIndex: activeCardIndex 
-    });
-}
-
-function clearSavedLibrary() {
-    db.transaction(["library"], "readwrite").objectStore("library").delete("active_deck");
-    location.reload();
-}
-
-function commitDeckToIndexedDB() { /* Already handled by saveLibraryProgress */ }
-
-
+        async function processPdf(arrayBuffer) {
+            try {
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    fullText += textContent.items.map(item => item.str).join(" ") + "\n";
+                }
+                finalizeExtraction(fullText);
+            } catch (err) {
+                alert("Error processing PDF: " + err);
+            }
+        }
+        function finalizeExtraction(text) {
+            const slices = text.split(/(?<=\.\s+)/).filter(Boolean);
+            flashcardAssetsDeck = slices.map((s, index) => ({
+                id: "card_" + Date.now() + "_" + index,
+                uid: index,
+                text: s.trim(),
+                know: 0,
+                miss: 0
+            }));
+            originalAssetsOrder = [...flashcardAssetsDeck];
+            activeCardIndex = 0;
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('card-view').style.display = 'flex';
+            document.getElementById('navigation-box').style.display = 'flex';
+            document.getElementById('clear-lib-btn').style.display = 'block';
+            document.getElementById('upload-label-text').innerText = "📁 Change File";
+            renderActiveCard();
+            saveLibraryProgress();
+        }
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.2.228/pdf.worker.js';
+        function saveLibraryProgress() {
+            if (!db) return;
+            let transaction = db.transaction(["library"], "readwrite");
+            transaction.objectStore("library").put({ 
+                id: "active_deck", 
+                deck: flashcardAssetsDeck, 
+                activeIndex: activeCardIndex 
+            });
+        }
+        function clearSavedLibrary() {
+            db.transaction(["library"], "readwrite").objectStore("library").delete("active_deck");
+            location.reload();
+        }
+        function commitDeckToIndexedDB() { }
     </script>
 </body>
 </html>
